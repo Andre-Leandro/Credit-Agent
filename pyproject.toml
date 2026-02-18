@@ -1,0 +1,15 @@
+[project]
+name = "credit-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "boto3>=1.42.51",
+    "fastapi>=0.129.0",
+    "langchain>=1.2.10",
+    "langchain-aws>=1.2.5",
+    "langgraph>=1.0.8",
+    "pydantic>=2.12.5",
+    "uvicorn>=0.41.0",
+]
