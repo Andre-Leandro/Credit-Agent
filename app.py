@@ -1,21 +1,27 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from langgraph.func import entrypoint
 from langchain_core.messages import HumanMessage
+from bedrock_agentcore import BedrockAgentCoreApp
 
 from agent.graph import build_graph
 
-app = FastAPI()
 graph = build_graph()
 
-
-class Query(BaseModel):
-    message: str
+app = BedrockAgentCoreApp()
 
 
-@app.post("/ask")
-async def ask(q: Query):
+@app.entrypoint
+def handle_request(event: dict) -> dict:
+    """
+    Entry point requerido por AgentCore.
+    Recibe un dict y devuelve un dict.
+    """
+
+    user_message = event.get("message", "")
+
     result = graph.invoke(
-        {"messages": [HumanMessage(content=q.message)]}
+        {"messages": [HumanMessage(content=user_message)]}
     )
 
-    return {"response": result["messages"][-1].content}
+    return {
+        "response": result["messages"][-1].content
+    }
