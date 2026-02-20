@@ -1,9 +1,22 @@
 from langchain.tools import tool
+from pydantic import BaseModel, Field
 
 
-@tool
+class CreditCheckInput(BaseModel):
+    """Input para evaluación crediticia."""
+    dni: str = Field(description="DNI del cliente")
+    income: float = Field(description="Ingreso mensual del cliente")
+
+
+@tool(args_schema=CreditCheckInput)
 def simulate_credit_check(dni: str, income: float) -> str:
-    """Evalúa elegibilidad crediticia básica (mock)."""
+    """
+    Evalúa la elegibilidad crediticia de un cliente.
+
+    Usa esta herramienta cuando el usuario proporcione DNI e ingreso mensual.
+    """
+
+    income = float(income)
 
     if income > 1000:
         return f"Cliente {dni} preaprobado para crédito."

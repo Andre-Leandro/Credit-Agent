@@ -2,6 +2,7 @@ import os
 from langchain_aws import ChatBedrockConverse
 
 
+
 def get_llm() -> ChatBedrockConverse:
     region = os.getenv("AWS_REGION", "us-east-1")
 
