@@ -1,12 +1,10 @@
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode, tools_condition
-from typing import TypedDict, List
-from langchain_core.messages import BaseMessage
+from typing import TypedDict, List, Annotated # 🔥 Agregamos Annotated
+from langgraph.graph.message import add_messages # 🔥 Agregamos el reducer
+from langchain_core.messages import BaseMessage, SystemMessage
 from .config import get_llm
 from .tools import simulate_credit_check
-from langchain_core.messages import SystemMessage
-from langchain_core.messages import BaseMessage 
-
 
 SYSTEM_PROMPT = """
 Eres un agente de evaluación crediticia.
@@ -28,15 +26,13 @@ EJEMPLOS DE USO:
 Usuario: Evaluar crédito para DNI 12345678 con ingresos mensuales de 50000
 Acción: simulate_credit_check(dni="12345678", income=50000)
 
-Usuario: Quiero saber si el cliente con DNI 87654321 y un ingreso mensual de 800 puede acceder a un crédito
-Acción: simulate_credit_check(dni="87654321", income=800)
-
-Si tienes ambos datos, llama directamente a la herramienta y responde SOLO con el resultado de la herramienta.
+INSTRUCCIÓN FINAL MUY IMPORTANTE:
+Una vez que ejecutes la herramienta y recibas su resultado, tu tarea es generar un mensaje final comunicándole ese mismo resultado al usuario de forma natural.
 """
 
 
 class AgentState(TypedDict):
-    messages: List[BaseMessage]
+    messages: Annotated[list[BaseMessage], add_messages]
 
 
 llm = get_llm().bind_tools([simulate_credit_check])
@@ -46,17 +42,18 @@ llm = get_llm().bind_tools([simulate_credit_check])
 def agent_node(state: AgentState):
     messages = state["messages"]
 
-    # 🔥 inyectar system message solo al inicio
+    # Inyectar system message solo al inicio para esta ejecución
     if not any(m.type == "system" for m in messages):
         messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
 
     response = llm.invoke(messages)
 
-    return {"messages": state["messages"] + [response]}
+    # 🔥 FIX 2: Como usamos add_messages en el State, solo devolvemos el nuevo mensaje
+    # LangGraph se encarga de sumarlo al historial sin borrar lo anterior.
+    return {"messages": [response]} 
 
 # Nodo de tools
 tool_node = ToolNode([simulate_credit_check])
-
 
 def build_graph():
     builder = StateGraph(AgentState)
@@ -65,7 +62,6 @@ def build_graph():
     builder.add_node("tools", tool_node)
     builder.set_entry_point("agent")
 
-    # ✅ routing robusto oficial
     builder.add_conditional_edges(
         "agent",
         tools_condition,
