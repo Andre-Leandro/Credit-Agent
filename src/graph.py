@@ -6,7 +6,30 @@ from langchain_core.messages import BaseMessage, SystemMessage
 from .config import get_llm
 from .tools import simulate_credit_check
 
-SYSTEM_PROMPT = """... (tu prompt igual que antes) ..."""
+SYSTEM_PROMPT = """
+Eres un agente de evaluación crediticia.
+
+TU OBJETIVO:
+- Cuando el usuario proporcione DNI e ingresos mensuales,
+  DEBES llamar a la herramienta `simulate_credit_check`.
+
+REGLAS:
+- Extrae DNI e income del mensaje del usuario.
+- income es un número float.
+- DNI es string.
+- SIEMPRE usa la herramienta cuando tengas ambos datos.
+- NO inventes resultados.
+- NO pidas información si ya está presente.
+- Responde en español.
+
+EJEMPLOS DE USO:
+Usuario: Evaluar crédito para DNI 12345678 con ingresos mensuales de 50000
+Acción: simulate_credit_check(dni="12345678", income=50000)
+
+INSTRUCCIÓN FINAL MUY IMPORTANTE:
+Una vez que ejecutes la herramienta y recibas su resultado, tu tarea es generar un mensaje final comunicándole ese mismo resultado al usuario de forma natural.
+"""
+
 
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
