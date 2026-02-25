@@ -2,8 +2,12 @@ from typing import Dict, Any, Optional
 from bedrock_agentcore import BedrockAgentCoreApp
 from bedrock_agentcore.runtime.context import RequestContext
 
+
+print(">>> INICIANDO AGENTE ULTIMATE")
+
 app = BedrockAgentCoreApp()
 graph = None
+
 
 async def get_graph(): # 🔥 Ahora es async
     global graph
@@ -35,3 +39,6 @@ async def invoke(payload: Dict[str, Any], context: Optional[RequestContext] = No
 
     # 🔥 Cambiamos 'response' por 'result' para coincidir con el estándar
     return {"result": str(final_text)}
+
+if __name__ == "__main__":
+    app.run()

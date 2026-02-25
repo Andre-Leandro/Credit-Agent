@@ -4,12 +4,7 @@ from langchain.tools import tool
 from bedrock_agentcore import BedrockAgentCoreApp
 from mcp_client.client import get_streamable_http_mcp_client
 from model.load import load_model
-
-# Define a simple function tool
-@tool
-def add_numbers(a: int, b: int) -> int:
-    """Return the sum of two numbers"""
-    return a+b
+from model.tools import simulate_credit_check, add_numbers
 
 # Import AgentCore Gateway as Streamable HTTP MCP Client
 mcp_client = get_streamable_http_mcp_client()
@@ -28,7 +23,7 @@ async def invoke(payload):
     tools = await mcp_client.get_tools()
 
     # Define the agent
-    graph = create_agent(llm, tools=tools + [add_numbers])
+    graph = create_agent(llm, tools=tools + [add_numbers, simulate_credit_check])
 
     # Process the user prompt
     prompt = payload.get("prompt", "What is Agentic AI?")
@@ -41,5 +36,3 @@ async def invoke(payload):
         "result": result["messages"][-1].content
     }
 
-if __name__ == "__main__":
-    app.run()
