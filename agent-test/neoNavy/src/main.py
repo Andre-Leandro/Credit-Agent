@@ -1,6 +1,5 @@
 from langchain_core.messages import HumanMessage
 from langchain.agents import create_agent
-from langchain.tools import tool
 from bedrock_agentcore import BedrockAgentCoreApp
 from mcp_client.client import get_streamable_http_mcp_client
 from model.load import load_model
