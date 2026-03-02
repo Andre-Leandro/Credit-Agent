@@ -1,13 +1,10 @@
-import './App.css'
 import MortgageSimulator from './components/MortgageSimulator'
 
 function App() {
-
-
   return (
-    <>
+    <div className="w-full">
       <MortgageSimulator />
-    </>
+    </div>
   )
 }
 
