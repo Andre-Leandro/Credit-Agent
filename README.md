@@ -2,7 +2,7 @@
 
 ---
 
-## 📝 Contenido
+# Contenido
 
 - [Características](#-caracter%C3%ADsticas)
 - [Arquitectura](#-arquitectura)
@@ -10,17 +10,16 @@
 - [Uso](#-uso)
 - [Desarrollo](#-desarrollo)
 - [Pruebas](#-pruebas)
-- [Contribución](#-contribuci%C3%B3n)
 - [Licencia](#-licencia)
 
-## 🚀 Características
+## Características
 
 - Backend en Python con herramientas para carga de modelos, gestión de agentes y utilidades.
 - Frontend en React + TypeScript usando Vite para una interfaz de simulación y chat.
 - Estructura modular para permitir integración de modelos de IA (ej. `agent-test/neoNavy`).
 - Soporte para tests unitarios en Python (`agent-test/neoNavy/test`) y configuración de frontend estable.
 
-## 🏗️ Arquitectura
+## Arquitectura
 
 El proyecto está organizado en varias carpetas clave:
 
@@ -31,7 +30,7 @@ El proyecto está organizado en varias carpetas clave:
 
 El backend y el frontend se ejecutan de forma independiente, comunicándose a través de una API HTTP o sockets si se configura.
 
-## ⚙️ Instalación
+## Instalación
 
 ### Requisitos previos
 
@@ -65,7 +64,7 @@ docker build -t credit-agent .
 docker run -p 8000:8000 credit-agent
 ```
 
-## 🧩 Uso
+## Uso
 
 1. Levanta el backend (`python app.py` o ejecuta el módulo principal). Debe escuchar en `localhost:8000` por defecto.
 2. Inicia el frontend (`npm run dev` en `frontend/`). Visita `http://localhost:3000` (u otro puerto mostrado) para interactuar.
@@ -73,7 +72,7 @@ docker run -p 8000:8000 credit-agent
 
 > 🔧 La comunicación con el agente puede configurarse en `config.py` o mediante variables de entorno.
 
-## 🛠️ Desarrollo
+## Desarrollo
 
 - El código Python sigue las buenas prácticas de PEP 8. Usa `black`, `flake8` o similar para formatear.
 - Los tests en `agent-test/neoNavy/test` se ejecutan con `pytest`.
@@ -86,24 +85,11 @@ pytest
 
 - Para el frontend, usa las herramientas de React, ESLint y Prettier ya configuradas.
 
-## ✅ Pruebas
+## Pruebas
 
 - Backend: `pytest` cubre módulos en `src/`.
 - Frontend: corre `npm run test` dentro de la carpeta `frontend` (si está configurado con una librería de testing).
 
-## 🤝 Contribución
-
-1. Haz un fork del repositorio.
-2. Crea una rama (`git checkout -b feature/nombre`).
-3. Realiza cambios y añade tests.
-4. Envía un pull request describiendo tus cambios.
-
-Agradecemos la contribución de ideas y parches. Lee `CONTRIBUTING.md` si existe anchoring.
-
-## 📄 Licencia
+## Licencia
 
 Este proyecto está licenciado bajo la [MIT License](LICENSE) o la que se defina.
-
----
-
-✨ ¡Gracias por evaluar Credit-Agent! Si tienes dudas, abre un issue o contacta con el equipo.
