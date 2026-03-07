@@ -1,4 +1,4 @@
-# Credit-Agent
+# Credit-Agent (Strata)
 
 ---
 
