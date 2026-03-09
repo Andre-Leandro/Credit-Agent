@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MessageCircle, Send, X, Minimize2, Maximize2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { MessageCircle, Send, X, Minimize2, Maximize2, Paperclip, File, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
@@ -9,11 +9,20 @@ interface ChatMessage {
   type: 'user' | 'agent';
   message: string;
   timestamp: Date;
+  files?: File[];
+}
+
+interface UploadedFile {
+  file: File;
+  name: string;
+  size: string;
 }
 
 export const ChatPanel = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -24,24 +33,56 @@ export const ChatPanel = () => {
   ]);
   const [inputValue, setInputValue] = useState('');
 
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files).map((file) => ({
+        file,
+        name: file.name,
+        size: formatFileSize(file.size),
+      }));
+      setUploadedFiles([...uploadedFiles, ...newFiles]);
+      // Limpiar el input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
+  };
+
   const handleSendMessage = () => {
-    if (inputValue.trim()) {
+    if (inputValue.trim() || uploadedFiles.length > 0) {
       const userMessage: ChatMessage = {
         id: String(messages.length + 1),
         type: 'user',
         message: inputValue,
         timestamp: new Date(),
+        files: uploadedFiles.map((uf) => uf.file),
       };
 
       setMessages([...messages, userMessage]);
       setInputValue('');
+      setUploadedFiles([]);
 
       // Simulate agent response
       setTimeout(() => {
         const agentMessage: ChatMessage = {
           id: String(messages.length + 2),
           type: 'agent',
-          message: 'Gracias por tu mensaje. Un agente pronto estará disponible para ayudarte con más detalles.',
+          message: uploadedFiles.length > 0 
+            ? `Gracias por enviar ${uploadedFiles.length} archivo(s). Un agente pronto revisará los documentos y estará disponible para ayudarte con más detalles.`
+            : 'Gracias por tu mensaje. Un agente pronto estará disponible para ayudarte con más detalles.',
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, agentMessage]);
@@ -119,6 +160,18 @@ export const ChatPanel = () => {
                       }`}
                     >
                       <p className="text-sm">{msg.message}</p>
+                      {msg.files && msg.files.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {msg.files.map((file, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-xs">
+                              <File className="w-3 h-3" />
+                              <span className={msg.type === 'user' ? 'text-blue-100' : 'text-gray-600'}>
+                                {file.name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <span
                         className={`text-xs mt-1 block ${
                           msg.type === 'user' ? 'text-blue-100' : 'text-gray-500'
@@ -136,7 +189,48 @@ export const ChatPanel = () => {
 
               {/* Input Area */}
               <div className="border-t border-gray-200 bg-white p-4 flex-shrink-0">
+                {/* Archivos Cargados */}
+                {uploadedFiles.length > 0 && (
+                  <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs font-semibold text-gray-700 mb-2">
+                      Archivos cargados ({uploadedFiles.length}):
+                    </p>
+                    <div className="space-y-2">
+                      {uploadedFiles.map((uploadedFile, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between bg-white p-2 rounded border border-blue-100 text-xs"
+                        >
+                          <div className="flex items-center gap-2 flex-1">
+                            <File className="w-3 h-3 text-blue-600" />
+                            <span className="text-gray-700 truncate">
+                              {uploadedFile.name}
+                            </span>
+                            <span className="text-gray-500 text-xs">({uploadedFile.size})</span>
+                          </div>
+                          <button
+                            onClick={() => removeFile(idx)}
+                            className="p-1 hover:bg-red-100 rounded transition"
+                            aria-label="Eliminar archivo"
+                          >
+                            <Trash2 className="w-3 h-3 text-red-600" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Input de texto y botones */}
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 text-gray-600 hover:bg-gray-100 rounded transition"
+                    aria-label="Cargar archivo"
+                    title="Cargar archivo"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </button>
                   <Input
                     type="text"
                     placeholder="Escribe tu pregunta..."
@@ -155,6 +249,16 @@ export const ChatPanel = () => {
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
+
+                {/* Input de archivo oculto */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt"
+                />
               </div>
             </>
           )}
