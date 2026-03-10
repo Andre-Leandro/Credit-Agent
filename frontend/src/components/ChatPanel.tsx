@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
-import { MessageCircle, Send, X, Minimize2, Maximize2, Paperclip, File, Trash2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { MessageCircle, Send, X, Minimize2, Maximize2, Paperclip, File, Trash2, Loader } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { useChatAgent } from '../hooks/useChatAgent';
 
 
 interface ChatMessage {
@@ -22,7 +23,9 @@ export const ChatPanel = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const { sendMessage, isLoading, error } = useChatAgent();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -32,6 +35,15 @@ export const ChatPanel = () => {
     },
   ]);
   const [inputValue, setInputValue] = useState('');
+
+  // Auto-scroll al último mensaje
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -61,32 +73,39 @@ export const ChatPanel = () => {
     setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (inputValue.trim() || uploadedFiles.length > 0) {
+      const filesToSend = uploadedFiles.map((uf) => uf.file);
+
       const userMessage: ChatMessage = {
         id: String(messages.length + 1),
         type: 'user',
         message: inputValue,
         timestamp: new Date(),
-        files: uploadedFiles.map((uf) => uf.file),
+        files: filesToSend,
       };
 
       setMessages([...messages, userMessage]);
       setInputValue('');
       setUploadedFiles([]);
 
-      // Simulate agent response
-      setTimeout(() => {
-        const agentMessage: ChatMessage = {
-          id: String(messages.length + 2),
-          type: 'agent',
-          message: uploadedFiles.length > 0 
-            ? `Gracias por enviar ${uploadedFiles.length} archivo(s). Un agente pronto revisará los documentos y estará disponible para ayudarte con más detalles.`
-            : 'Gracias por tu mensaje. Un agente pronto estará disponible para ayudarte con más detalles.',
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, agentMessage]);
-      }, 1000);
+      // Enviar mensaje al agente
+      const response = await sendMessage({
+        message: inputValue,
+        files: filesToSend,
+      });
+
+      // Agregar respuesta del agente
+      const agentMessage: ChatMessage = {
+        id: String(messages.length + 2),
+        type: 'agent',
+        message: response.success 
+          ? response.message 
+          : `Error: ${response.error || 'No se pudo conectar con el agente'}`,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, agentMessage]);
     }
   };
 
@@ -185,6 +204,22 @@ export const ChatPanel = () => {
                     </div>
                   </div>
                 ))}
+
+                {/* Loading indicator */}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-white text-gray-800 border border-gray-200 rounded-lg rounded-bl-none px-4 py-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Loader className="w-4 h-4 animate-spin text-blue-600" />
+                        <span className="text-sm font-medium text-gray-700">El agente está analizando...</span>
+                      </div>
+                      <p className="text-xs text-gray-500 pl-6">Esto puede tomar hasta 15 segundos</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Elemento invisible para hacer scroll */}
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Input Area */}
@@ -221,11 +256,20 @@ export const ChatPanel = () => {
                   </div>
                 )}
 
+                {/* Error Message */}
+                {error && (
+                  <div className="mb-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <p className="text-xs font-semibold text-red-700 mb-1">Error:</p>
+                    <p className="text-xs text-red-600">{error}</p>
+                  </div>
+                )}
+
                 {/* Input de texto y botones */}
                 <div className="flex gap-2">
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded transition"
+                    disabled={isLoading}
+                    className="p-2 text-gray-600 hover:bg-gray-100 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label="Cargar archivo"
                     title="Cargar archivo"
                   >
@@ -237,16 +281,22 @@ export const ChatPanel = () => {
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={(e) => {
-                      if (e.key === 'Enter') handleSendMessage();
+                      if (e.key === 'Enter' && !isLoading) handleSendMessage();
                     }}
+                    disabled={isLoading}
                     className="flex-1"
                   />
                   <Button
                     onClick={handleSendMessage}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-3"
+                    disabled={isLoading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     size="sm"
                   >
-                    <Send className="w-4 h-4" />
+                    {isLoading ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
 
