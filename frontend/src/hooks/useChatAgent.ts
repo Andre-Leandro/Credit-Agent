@@ -11,6 +11,21 @@ interface ChatResponse {
   error?: string;
 }
 
+// Convertir archivo a base64 (sin prefijo)
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Extraer solo la parte base64 sin el prefijo "data:image/...;base64,"
+      const base64String = result.split(',')[1];
+      resolve(base64String);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export const useChatAgent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,20 +35,33 @@ export const useChatAgent = () => {
     setError(null);
 
     try {
-      const lambdaUrl = 'https://ex2neaqezalia5hgololek4wra0kaknv.lambda-url.us-east-1.on.aws/';
+      const lambdaUrl = import.meta.env.VITE_LAMBDA_URL;
 
-      // Construir el prompt incluyendo archivos si existen
-      let prompt = request.message;
-      
-      if (request.files && request.files.length > 0) {
-        prompt += `\n\n📎 Archivos adjuntos: ${request.files.map(f => f.name).join(', ')}`;
+      if (!lambdaUrl) {
+        throw new Error('VITE_LAMBDA_URL no está configurada en las variables de entorno');
       }
 
-      const payload = {
-        prompt: prompt,
+      // Preparar payload base
+      const payload: any = {
+        prompt: request.message,
       };
 
-      console.log('📤 Enviando a Lambda:', payload);
+      // Si hay imágenes, convertir a base64
+      if (request.files && request.files.length > 0) {
+        const imageFile = request.files[0]; // Tomar la primera imagen
+        const mimeType = imageFile.type;
+
+        if (mimeType.startsWith('image/')) {
+          const base64String = await fileToBase64(imageFile);
+          payload.image = base64String;
+          console.log('🖼️ Imagen convertida a base64, tipo:', mimeType);
+        }
+      }
+
+      console.log('📤 Enviando a Lambda:', {
+        prompt: payload.prompt,
+        hasImage: !!payload.image,
+      });
 
       const response = await fetch(lambdaUrl, {
         method: 'POST',
@@ -53,7 +81,7 @@ export const useChatAgent = () => {
         } catch {
           errorMessage = await response.text() || errorMessage;
         }
-        
+
         console.error('❌ Error del servidor:', errorMessage);
         throw new Error(errorMessage);
       }
@@ -70,13 +98,13 @@ export const useChatAgent = () => {
         message: data.result,
       };
     } catch (err) {
-      const errorMessage = err instanceof Error 
-        ? err.message 
+      const errorMessage = err instanceof Error
+        ? err.message
         : 'No pudimos conectar con el agente. Por favor, intenta de nuevo.';
-      
+
       console.error('🚨 Error en hook:', errorMessage);
       setError(errorMessage);
-      
+
       return {
         success: false,
         message: '',
