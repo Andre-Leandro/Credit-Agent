@@ -84,9 +84,9 @@ const MortgageSimulator: React.FC = () => {
           {/* FORMULARIO */}
           <div className="xl:col-span-2">
             <Card className="shadow-xl border-0">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
+              <CardHeader className="bg-[#10069f] text-white rounded-t-lg">
                 <CardTitle className="text-2xl">Datos del Préstamo</CardTitle>
-                <CardDescription className="text-blue-100 text-base">
+                <CardDescription className="text-white/70 text-base">
                   Completa los datos para simular tu crédito hipotecario
                 </CardDescription>
               </CardHeader>
@@ -112,7 +112,7 @@ const MortgageSimulator: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     <div className="space-y-3">
                       <Label htmlFor="years" className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-blue-600" />
+                        <Clock className="w-5 h-5 text-[#10069f]" />
                         Plazo (años)
                       </Label>
                       <Input 
@@ -130,7 +130,7 @@ const MortgageSimulator: React.FC = () => {
 
                     <div className="space-y-3">
                       <Label htmlFor="propertyValue" className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                        <Home className="w-5 h-5 text-blue-600" />
+                        <Home className="w-5 h-5 text-[#10069f]" />
                         Valor de la Propiedad
                       </Label>
                       <Input 
@@ -147,7 +147,7 @@ const MortgageSimulator: React.FC = () => {
 
                     <div className="space-y-3">
                       <Label htmlFor="loanAmount" className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                        <DollarSign className="w-5 h-5 text-blue-600" />
+                        <DollarSign className="w-5 h-5 text-[#10069f]" />
                         Monto del Crédito
                       </Label>
                       <Input 
@@ -203,7 +203,7 @@ const MortgageSimulator: React.FC = () => {
                     </Button>
                     <Button 
                       onClick={handleSimulation}
-                      className="flex-1 h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                      className="flex-1 h-12 text-lg font-semibold bg-[#10069f] hover:bg-[#0a0470]"
                       variant="default"
                     >
                       Simular Crédito
@@ -271,8 +271,8 @@ const MortgageSimulator: React.FC = () => {
             )}
 
             {!approved && !rejected && (
-              <Card className="shadow-xl border-0 h-fit bg-blue-50">
-                <CardHeader className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-t-lg">
+              <Card className="shadow-xl border-0 h-fit bg-[#10069f]/5">
+                <CardHeader className="bg-[#10069f] text-white rounded-t-lg">
                   <CardTitle>Información</CardTitle>
                 </CardHeader>
                 <CardContent className="p-8">

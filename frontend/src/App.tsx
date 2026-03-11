@@ -23,7 +23,10 @@ function App() {
         {/* Simulador (Collapsible izquierda) */}
         <CollapsibleSimulator onSendMessage={handleSimulatorSendMessage} />
 
-        {/* Centro: Chat - expandido */}
+        {/* Spacer izquierdo invisible para simetría */}
+        <div className="w-72 hidden lg:block" />
+
+        {/* Centro: Chat - centrado */}
         <div className="flex-1 flex flex-col min-w-0">
           <ChatPanel ref={chatPanelRef} />
         </div>

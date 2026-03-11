@@ -42,7 +42,7 @@ export const CreditProgressBar: React.FC = () => {
   ];
 
   return (
-    <div className="w-full h-full bg-gradient-to-b from-blue-50 to-indigo-50 p-6 overflow-y-auto">
+    <div className="w-full h-full bg-gradient-to-b from-[#f5f3ff] to-white p-6 overflow-y-auto">
       <div className="flex flex-col gap-8">
         <div>
           <h3 className="text-lg font-bold text-gray-900 mb-2">Progreso del Crédito</h3>
@@ -59,7 +59,7 @@ export const CreditProgressBar: React.FC = () => {
                     checkpoint.status === 'completed'
                       ? 'bg-gradient-to-b from-green-400 to-green-300'
                       : checkpoint.status === 'current'
-                      ? 'bg-gradient-to-b from-blue-400 to-blue-300'
+                      ? 'bg-gradient-to-b from-[#10069f] to-[#0a0470]'
                       : 'bg-gray-200'
                   }`}
                 />
@@ -73,7 +73,7 @@ export const CreditProgressBar: React.FC = () => {
                     checkpoint.status === 'completed'
                       ? 'bg-green-100 text-green-600 ring-2 ring-green-300'
                       : checkpoint.status === 'current'
-                      ? 'bg-blue-100 text-blue-600 ring-2 ring-blue-300 animate-pulse'
+                      ? 'bg-[#f5f3ff] text-[#10069f] ring-2 ring-[#10069f] animate-pulse'
                       : 'bg-gray-100 text-gray-400'
                   }`}
                 >
@@ -93,7 +93,7 @@ export const CreditProgressBar: React.FC = () => {
                       checkpoint.status === 'completed'
                         ? 'text-green-700'
                         : checkpoint.status === 'current'
-                        ? 'text-blue-700'
+                        ? 'text-[#10069f]'
                         : 'text-gray-500'
                     }`}
                   >
@@ -104,7 +104,7 @@ export const CreditProgressBar: React.FC = () => {
                       checkpoint.status === 'completed'
                         ? 'text-green-600'
                         : checkpoint.status === 'current'
-                        ? 'text-blue-600'
+                        ? 'text-[#10069f]'
                         : 'text-gray-400'
                     }`}
                   >

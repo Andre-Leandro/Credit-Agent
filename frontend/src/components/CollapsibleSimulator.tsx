@@ -103,7 +103,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
             {/* Plazo */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-600" />
+                <Clock className="w-4 h-4 text-[#10069f]" />
                 Plazo (años)
               </Label>
               <Input 
@@ -122,7 +122,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
             {/* Propiedad */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <Home className="w-4 h-4 text-blue-600" />
+                <Home className="w-4 h-4 text-[#10069f]" />
                 Valor de la Propiedad
               </Label>
               <Input 
@@ -140,7 +140,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
             {/* Monto */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-blue-600" />
+                <DollarSign className="w-4 h-4 text-[#10069f]" />
                 Monto del Crédito
               </Label>
               <Input 
@@ -194,7 +194,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
           <Button 
             onClick={handleSimulation}
             disabled={isLoading}
-            className="w-full h-10 text-sm font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50"
+            className="w-full h-10 text-sm font-semibold bg-[#10069f] hover:bg-[#0a0470] disabled:opacity-50"
             variant="default"
           >
             Simular y Enviar al Chat
@@ -214,7 +214,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed left-0 top-1/2 transform -translate-y-1/2 z-40 p-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-r-lg shadow-lg hover:shadow-xl transition-all duration-300 ${
+        className={`fixed left-0 top-1/2 transform -translate-y-1/2 z-40 p-2 bg-[#10069f] text-white rounded-r-lg shadow-lg hover:shadow-xl transition-all duration-300 ${
           isOpen ? 'translate-x-80' : 'translate-x-0'
         }`}
         aria-label="Toggle simulador"

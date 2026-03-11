@@ -146,7 +146,7 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
       {/* Header */}
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto bg-gray-50 flex justify-center">
-        <div className="w-full max-w-3xl px-6 py-6 space-y-4 pb-6 mx-auto">
+        <div className="w-full max-w-3xl px-6 py-6 space-y-4 pb-20 mx-auto">
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -155,7 +155,7 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
               <div
                 className={`max-w-md px-4 py-3 rounded-lg ${
                   msg.type === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-none'
+                  ? 'bg-[#10069f] text-white rounded-br-none'
                     : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
                 }`}
               >
@@ -171,7 +171,7 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
                   </div>
                 )}
                 <p className={`text-xs mt-2 ${
-                  msg.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                  msg.type === 'user' ? 'text-white/70' : 'text-gray-500'
                 }`}>
                   {msg.timestamp.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
                 </p>
@@ -183,7 +183,7 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
             <div className="flex justify-start">
               <div className="bg-white text-gray-800 border border-gray-200 rounded-lg rounded-bl-none px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <Loader className="w-4 h-4 animate-spin text-blue-600" />
+                <Loader className="w-4 h-4 animate-spin text-[#10069f]" />
                   <span className="text-sm">El asistente está escribiendo...</span>
                 </div>
               </div>
@@ -195,11 +195,11 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 bg-white flex-shrink-0 flex justify-center p-6">
-        <div className="w-full max-w-3xl space-y-3 mx-auto">
+      <div className="bg-gray-50 flex-shrink-0 flex justify-center p-6">
+        <div className="w-full max-w-3xl mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
           {/* Uploaded Files Preview */}
           {uploadedFiles.length > 0 && (
-            <div className="bg-blue-50 rounded-lg border border-blue-200 p-3">
+            <div className="from-[#10069f]/5 to-white/50 rounded-lg border border-[#10069f]/10 p-3">
               <p className="text-xs font-semibold text-gray-600 mb-2">Archivos adjuntos:</p>
               <div className="flex flex-wrap gap-2">
                 {uploadedFiles.map((uf, idx) => (
@@ -207,7 +207,7 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
                     key={idx}
                     className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-200 text-xs text-gray-700"
                   >
-                    <File className="w-3 h-3 text-blue-600" />
+                    <File className="w-3 h-3 text-[#10069f]" />
                     <span>{uf.name}</span>
                     <span className="text-gray-400">({uf.size})</span>
                     <button
@@ -234,7 +234,7 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
           <div className="flex gap-3">
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="p-2 hover:bg-gray-100 rounded-lg transition text-gray-600 hover:text-blue-600"
+              className="p-2 hover:bg-gray-100 rounded-lg transition text-gray-600 hover:text-[#10069f]"
               aria-label="Adjuntar archivo"
             >
               <Paperclip className="w-5 h-5" />
@@ -258,7 +258,7 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
             <Button
               onClick={handleSendMessage}
               disabled={isLoading || (!inputValue.trim() && uploadedFiles.length === 0)}
-              className="px-4 h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white disabled:opacity-50"
+              className="px-4 h-11 bg-[#10069f] hover:bg-[#0a0470] text-white disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
             </Button>

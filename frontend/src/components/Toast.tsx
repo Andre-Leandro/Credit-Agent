@@ -50,7 +50,7 @@ export const ToastContainer = ({ toasts, onRemove }: ToastContainerProps) => {
               ? 'bg-green-500 text-white'
               : toast.type === 'warning'
               ? 'bg-yellow-500 text-white'
-              : 'bg-blue-500 text-white'
+              : 'bg-[#10069f] text-white'
           }`}
         >
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
