@@ -1,167 +1,274 @@
-import { useState } from 'react';
-import { MessageCircle, Send, X, Minimize2, Maximize2 } from 'lucide-react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { Send, Paperclip, File, Loader, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-
+import { useChatAgent } from '../hooks/useChatAgent';
 
 interface ChatMessage {
   id: string;
   type: 'user' | 'agent';
   message: string;
   timestamp: Date;
+  files?: File[];
 }
 
-export const ChatPanel = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+interface UploadedFile {
+  file: File;
+  name: string;
+  size: string;
+}
+
+const ChatPanel = forwardRef<any, {}>((_, ref) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const { sendMessage, isLoading, error } = useChatAgent();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       type: 'agent',
-      message: '¡Hola! Soy tu asistente de crédito. ¿En qué puedo ayudarte hoy?',
+      message: '¡Hola! Soy tu asistente de crédito. Puedes usar el simulador de la izquierda para obtener una pre-aprobación, o escribeme aquí directamente. ¿En qué puedo ayudarte?',
       timestamp: new Date(),
     },
   ]);
   const [inputValue, setInputValue] = useState('');
 
-  const handleSendMessage = () => {
-    if (inputValue.trim()) {
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading]);
+
+  // Exponer el método sendMessageDirect a través del ref
+  useImperativeHandle(ref, () => ({
+    sendMessageDirect: async (message: string) => {
+      if (message.trim()) {
+        const userMessage: ChatMessage = {
+          id: String(messages.length + 1),
+          type: 'user',
+          message: message,
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, userMessage]);
+
+        const response = await sendMessage({
+          message: message,
+          files: [],
+        });
+
+        const agentMessage: ChatMessage = {
+          id: String(messages.length + 2),
+          type: 'agent',
+          message: response.success 
+            ? response.message 
+            : `Error: ${response.error || 'No se pudo conectar con el agente'}`,
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, agentMessage]);
+      }
+    }
+  }));
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files).map((file) => ({
+        file,
+        name: file.name,
+        size: formatFileSize(file.size),
+      }));
+      setUploadedFiles([...uploadedFiles, ...newFiles]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
+  };
+
+  const handleSendMessage = async () => {
+    if (inputValue.trim() || uploadedFiles.length > 0) {
+      const filesToSend = uploadedFiles.map((uf) => uf.file);
+
       const userMessage: ChatMessage = {
         id: String(messages.length + 1),
         type: 'user',
         message: inputValue,
         timestamp: new Date(),
+        files: filesToSend,
       };
 
       setMessages([...messages, userMessage]);
       setInputValue('');
+      setUploadedFiles([]);
 
-      // Simulate agent response
-      setTimeout(() => {
-        const agentMessage: ChatMessage = {
-          id: String(messages.length + 2),
-          type: 'agent',
-          message: 'Gracias por tu mensaje. Un agente pronto estará disponible para ayudarte con más detalles.',
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, agentMessage]);
-      }, 1000);
+      const response = await sendMessage({
+        message: inputValue,
+        files: filesToSend,
+      });
+
+      const agentMessage: ChatMessage = {
+        id: String(messages.length + 2),
+        type: 'agent',
+        message: response.success 
+          ? response.message 
+          : `Error: ${response.error || 'No se pudo conectar con el agente'}`,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, agentMessage]);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
   };
 
   return (
-    <>
-      {/* Chat Toggle Button */}
-      {!isOpen && (
-        <button
-          className="fixed bottom-6 right-6 z-30 flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200"
-          onClick={() => setIsOpen(true)}
-          aria-label="Abrir chat"
-        >
-          <MessageCircle className="w-6 h-6" />
-        </button>
-      )}
-
-      {/* Chat Panel */}
-      {isOpen && (
-        <div
-          className={`fixed right-0 top-0 z-40 h-screen w-full sm:w-96 bg-white shadow-2xl flex flex-col transform transition-all duration-300 ${
-            isMinimized ? 'max-h-16' : 'max-h-screen'
-          }`}
-        >
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-md flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                <MessageCircle className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-sm">Asistente CreditBank</h3>
-                <p className="text-xs text-blue-100">En línea • Disponible 24/7</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setIsMinimized(!isMinimized)}
-                className="p-1 hover:bg-blue-500/20 rounded transition"
-                aria-label={isMinimized ? 'Expandir' : 'Minimizar'}
+    <div className="h-full flex flex-col bg-white">
+      {/* Header */}
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto bg-gray-50 flex justify-center">
+        <div className="w-full max-w-3xl px-6 py-6 space-y-4 pb-20 mx-auto">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-md px-4 py-3 rounded-lg ${
+                  msg.type === 'user'
+                  ? 'bg-[#10069f] text-white rounded-br-none'
+                    : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
+                }`}
               >
-                {isMinimized ? (
-                  <Maximize2 className="w-4 h-4" />
-                ) : (
-                  <Minimize2 className="w-4 h-4" />
+                <p className="text-sm whitespace-pre-wrap break-words">{msg.message}</p>
+                {msg.files && msg.files.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-300/30 space-y-1">
+                    {msg.files.map((file, idx) => (
+                      <div key={idx} className="text-xs flex items-center gap-1">
+                        <File className="w-3 h-3" />
+                        {file.name}
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </button>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-1 hover:bg-blue-500/20 rounded transition"
-                aria-label="Cerrar chat"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                <p className={`text-xs mt-2 ${
+                  msg.type === 'user' ? 'text-white/70' : 'text-gray-500'
+                }`}>
+                  {msg.timestamp.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
             </div>
-          </div>
+          ))}
 
-          {/* Messages Area */}
-          {!isMinimized && (
-            <>
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-                {messages.map((msg) => (
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-white text-gray-800 border border-gray-200 rounded-lg rounded-bl-none px-4 py-3">
+                <div className="flex items-center gap-2">
+                <Loader className="w-4 h-4 animate-spin text-[#10069f]" />
+                  <span className="text-sm">El asistente está escribiendo...</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      {/* Input Area */}
+      <div className="bg-gray-50 flex-shrink-0 flex justify-center p-6">
+        <div className="w-full max-w-3xl mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
+          {/* Uploaded Files Preview */}
+          {uploadedFiles.length > 0 && (
+            <div className="from-[#10069f]/5 to-white/50 rounded-lg border border-[#10069f]/10 p-3">
+              <p className="text-xs font-semibold text-gray-600 mb-2">Archivos adjuntos:</p>
+              <div className="flex flex-wrap gap-2">
+                {uploadedFiles.map((uf, idx) => (
                   <div
-                    key={msg.id}
-                    className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                    key={idx}
+                    className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-200 text-xs text-gray-700"
                   >
-                    <div
-                      className={`max-w-xs px-4 py-2 rounded-lg ${
-                        msg.type === 'user'
-                          ? 'bg-blue-600 text-white rounded-br-none'
-                          : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
-                      }`}
+                    <File className="w-3 h-3 text-[#10069f]" />
+                    <span>{uf.name}</span>
+                    <span className="text-gray-400">({uf.size})</span>
+                    <button
+                      onClick={() => removeFile(idx)}
+                      className="ml-1 text-gray-400 hover:text-gray-600 transition"
+                      aria-label="Remover archivo"
                     >
-                      <p className="text-sm">{msg.message}</p>
-                      <span
-                        className={`text-xs mt-1 block ${
-                          msg.type === 'user' ? 'text-blue-100' : 'text-gray-500'
-                        }`}
-                      >
-                        {msg.timestamp.toLocaleTimeString('es-AR', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </div>
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
                 ))}
               </div>
-
-              {/* Input Area */}
-              <div className="border-t border-gray-200 bg-white p-4 flex-shrink-0">
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    placeholder="Escribe tu pregunta..."
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') handleSendMessage();
-                    }}
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-3"
-                    size="sm"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </>
+            </div>
           )}
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 rounded-lg border border-red-200 p-3">
+              <p className="text-xs font-semibold text-red-700">Error: {error}</p>
+            </div>
+          )}
+
+          {/* Input */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2 hover:bg-gray-100 rounded-lg transition text-gray-600 hover:text-[#10069f]"
+              aria-label="Adjuntar archivo"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileChange}
+              className="hidden"
+              aria-label="Seleccionar archivo"
+            />
+            <Input
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Escribe tu mensaje aquí..."
+              className="flex-1 h-11 border-gray-300"
+              disabled={isLoading}
+            />
+            <Button
+              onClick={handleSendMessage}
+              disabled={isLoading || (!inputValue.trim() && uploadedFiles.length === 0)}
+              className="px-4 h-11 bg-[#10069f] hover:bg-[#0a0470] text-white disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
-};
+});
+
+ChatPanel.displayName = 'ChatPanel';
 
 export default ChatPanel;
