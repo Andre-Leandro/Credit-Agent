@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Send, Paperclip, File, Loader, MessageSquare, X } from 'lucide-react';
+import { Send, Paperclip, File, Loader, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useChatAgent } from '../hooks/useChatAgent';

@@ -41,10 +41,20 @@ export const useChatAgent = () => {
         throw new Error('VITE_LAMBDA_URL no está configurada en las variables de entorno');
       }
 
+      // Obtener el usuario del localStorage
+      const userString = localStorage.getItem('user');
+      const user = userString ? JSON.parse(userString) : null;
+      const dni = user?.dni;
+
       // Preparar payload base
       const payload: any = {
         prompt: request.message,
       };
+
+      // Agregar DNI si existe
+      if (dni) {
+        payload.dni = dni;
+      }
 
       // Si hay imágenes, convertir a base64
       if (request.files && request.files.length > 0) {

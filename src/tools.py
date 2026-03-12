@@ -5,7 +5,7 @@ from langchain.tools import tool
 from pydantic import BaseModel, Field
 
 # Inicializamos DynamoDB
-dynamodb = boto3.resource('dynamodb')
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 table = dynamodb.Table('SolicitudesCredito')
 
 # --- ESQUEMAS DE ENTRADA (Pydantic) ---

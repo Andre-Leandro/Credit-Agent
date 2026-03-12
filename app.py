@@ -20,46 +20,46 @@ async def get_graph():
 async def invoke(payload: Dict[str, Any], context: Optional[RequestContext] = None) -> Dict[str, Any]:
     prompt = payload.get("prompt", payload.get("message", ""))
     image_b64 = payload.get("image")
-    image_type = payload.get("image_type", "image/png") # Aseguramos un default
+    image_type = payload.get("image_type", "image/png")
     
-    # --- LIMPIEZA DE BASE64 (Vital para Bedrock) ---
+    # --- 1. CAPTURAR EL DNI QUE VIENE DEL PASAMANOS ---
+    dni = payload.get("dni") 
+    
+    # --- LIMPIEZA DE BASE64 ---
     cleaned_b64 = None
     if image_b64:
-        # Quitamos el prefijo 'data:image/png;base64,' si existe
         if "," in image_b64:
             cleaned_b64 = image_b64.split(",")[1]
         else:
             cleaned_b64 = image_b64
-        
-        # Quitamos saltos de línea y espacios
         cleaned_b64 = cleaned_b64.strip().replace("\n", "").replace("\r", "")
 
     agent_graph = await get_graph()
 
-    # --- CONSTRUIR CONTENIDO MULTIMODAL NATIVO ---
+    # --- CONSTRUIR CONTENIDO MULTIMODAL ---
     if cleaned_b64:
         content = [
             {
                 "type": "text", 
-                "text": prompt if prompt else "Analiza esta imagen."
+                "text": f"[DNI del Usuario: {dni}] {prompt}" if dni else prompt
             },
             {
-                "type": "image", # <--- Formato nativo Bedrock
+                "type": "image",
                 "source": {
                     "type": "base64",
                     "media_type": image_type,
-                    "data": cleaned_b64 # Base64 PURO
+                    "data": cleaned_b64
                 }
             }
         ]
-        print(f"📸 Enviando bloque de IMAGEN nativo. Tamaño: {len(cleaned_b64)}")
     else:
-        content = prompt
-        print(f"📝 Enviando solo TEXTO")
+        # Si no hay imagen, igual le pasamos el DNI en el texto para que el agente lo tenga presente
+        content = f"[DNI del Usuario: {dni}] {prompt}" if dni else prompt
 
-    # Invocamos el grafo
+    # --- 2. INVOCAR EL GRAFO CON EL DNI EN EL ESTADO ---
+    # Pasamos el DNI como parte del estado inicial para que las Tools lo vean
     result = await agent_graph.ainvoke(
-        {"messages": [HumanMessage(content=content)]}
+        {"messages": [HumanMessage(content=content)], "dni": dni}
     )
 
     final_msg = result["messages"][-1]

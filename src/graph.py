@@ -33,6 +33,7 @@ ESTILO DE COMUNICACIÓN:
 
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
+    dni: str
 
 _llm = None
 
