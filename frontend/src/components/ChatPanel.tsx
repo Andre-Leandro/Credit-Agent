@@ -22,6 +22,7 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [dragActive, setDragActive] = useState(false);
   const { sendMessage, isLoading, error } = useChatAgent();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -141,8 +142,48 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
     }
   };
 
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files) {
+      const newFiles = Array.from(e.dataTransfer.files).map((file) => ({
+        file,
+        name: file.name,
+        size: formatFileSize(file.size),
+      }));
+      setUploadedFiles([...uploadedFiles, ...newFiles]);
+    }
+  };
+
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div 
+      className="h-full flex flex-col bg-white relative"
+      onDragEnter={handleDrag}
+      onDragLeave={handleDrag}
+      onDragOver={handleDrag}
+      onDrop={handleDrop}
+    >
+      {/* Drag & Drop Overlay */}
+      {dragActive && (
+        <div className="absolute inset-0 bg-[#10069f]/10 border-2 border-dashed border-[#10069f] rounded-lg flex items-center justify-center z-50 pointer-events-none">
+          <div className="text-center">
+            <Paperclip className="w-12 h-12 text-[#10069f] mx-auto mb-2" />
+            <p className="text-sm font-semibold text-[#10069f]">Suelta los archivos aquí</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto bg-gray-50 flex justify-center">

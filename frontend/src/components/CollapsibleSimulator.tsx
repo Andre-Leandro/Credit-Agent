@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Home, DollarSign, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, DollarSign, Clock, FileText } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select } from './ui/select';
 import { useToast, ToastContainer } from './Toast';
+import DocumentationUploader from './DocumentationUploader';
+import { useRequest } from '../contexts/RequestContext';
 
 interface CollapsibleSimulatorProps {
   onSendMessage: (message: string) => void;
@@ -13,6 +15,7 @@ interface CollapsibleSimulatorProps {
 
 export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSendMessage, isLoading = false }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { requestState, setRequestState } = useRequest();
   const [destination, setDestination] = useState('Construcción de segunda vivienda');
   const [years, setYears] = useState(15);
   const [propertyValue, setPropertyValue] = useState(0);
@@ -33,13 +36,6 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
       addToast('LTV mayor a 80%. Crédito rechazado.', 'error');
       return;
     }
-
-    // Cálculo de cuota
-    const annualRate = 0.04;
-    const monthlyRate = annualRate / 12;
-    const payments = years * 12;
-    const payment = (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, payments)) / 
-                    (Math.pow(1 + monthlyRate, payments) - 1);
     
     // Formattear mensaje para el chat
     const mensaje = `Solicito evaluar mi crédito con los siguientes datos:
@@ -71,6 +67,21 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
     setCvsCap('No');
   };
 
+  const handleSendDocumentation = (_files: any[]) => {
+    const mensaje = `Hola. Acá te paso los datos para continuar con mi solicitud de crédito:
+
+📄 Documentos Adjuntos:
+- DNI (Frente)
+- DNI (Dorso)
+- Último Recibo de Sueldo
+
+Por favor, procede con la evaluación de mi solicitud.`;
+
+    onSendMessage(mensaje);
+    setRequestState('simulator');
+    addToast('Documentos enviados al chat', 'success');
+  };
+
   return (
     <>
       {/* Panel desplegable */}
@@ -79,8 +90,10 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
           isOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full'
         } overflow-hidden flex flex-col`}
       >
-        <div className="flex-1 overflow-y-auto p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 mt-6">Simulador de Crédito</h2>
+        {requestState === 'simulator' ? (
+          <>
+            <div className="flex-1 overflow-y-auto p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-6 mt-6">Simulador de Crédito</h2>
           
           <div className="space-y-5">
             {/* Destino */}
@@ -199,6 +212,16 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
           >
             Enviar al Chat
           </Button>
+
+          <Button 
+            onClick={() => setRequestState('documentation')}
+            disabled={isLoading}
+            className="w-full h-10 text-sm font-semibold"
+            variant="outline"
+          >
+            <FileText className="w-4 h-4 mr-2" />
+            Cargar Documentación
+          </Button>
           
           <Button 
             onClick={handleReset}
@@ -209,6 +232,13 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
             Limpiar
           </Button>
         </div>
+        </>
+        ) : (
+          <DocumentationUploader
+            onSendDocumentation={handleSendDocumentation}
+            isLoading={isLoading}
+          />
+        )}
       </div>
 
       {/* Toggle Button */}
