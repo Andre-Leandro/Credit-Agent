@@ -16,23 +16,9 @@ export const Header = () => {
             </div>
             <div className="hidden sm:block">
               <h1 className="text-2xl font-bold text-white">CreditBank</h1>
-              <p className="text-sm text-white/70">Simulador de Créditos Hipotecarios</p>
+              <p className="text-sm text-white/70">Créditos Hipotecarios</p>
             </div>
           </div>
-
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
-            <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-white hover:text-white/80 font-medium transition">
-              Simulador
-            </button>
-            <button onClick={() => {}} className="text-white hover:text-white/80 font-medium transition">
-              Acerca de
-            </button>
-            <button onClick={() => {}} className="text-white hover:text-white/80 font-medium transition">
-              Contacto
-            </button>
-          </nav>
-
           {/* Right side actions */}
           <div className="hidden md:flex items-center gap-3">
             <Button

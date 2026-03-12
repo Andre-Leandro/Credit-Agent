@@ -197,7 +197,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
             className="w-full h-10 text-sm font-semibold bg-[#10069f] hover:bg-[#0a0470] disabled:opacity-50"
             variant="default"
           >
-            Simular y Enviar al Chat
+            Enviar al Chat
           </Button>
           
           <Button 
