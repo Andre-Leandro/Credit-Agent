@@ -3,15 +3,16 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
 import { useAuth } from '../contexts/AuthContext';
-import { Home } from 'lucide-react';
+import { Home, Loader } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [dni, setDni] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -35,7 +36,37 @@ export const Login = () => {
       return;
     }
 
-    login(email, dni);
+    setIsLoading(true);
+    try {
+      // Usar el mismo endpoint Lambda que CreditProgressBar
+      const lambdaUrl = import.meta.env.VITE_LAMBDA_URL;
+      if (!lambdaUrl) {
+        throw new Error('Lambda URL no configurada');
+      }
+
+      const response = await fetch(lambdaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'get_status',
+          dni: dni
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success' && data.data) {
+        const estado = data.data.estado || 'PRE_APROBACION';
+        login(email, dni, estado);
+      } else {
+        setError('Error al autenticarse. Intenta de nuevo.');
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setError('Error de conexión. Intenta de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -91,9 +122,17 @@ export const Login = () => {
 
             <Button
               type="submit"
-              className="w-full bg-[#10069f] hover:bg-[#0d045c] text-white font-semibold py-2 rounded-lg transition"
+              disabled={isLoading}
+              className="w-full bg-[#10069f] hover:bg-[#0d045c] text-white font-semibold py-2 rounded-lg transition disabled:opacity-50"
             >
-              Ingresar
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader className="w-4 h-4 animate-spin" />
+                  Verificando...
+                </span>
+              ) : (
+                'Ingresar'
+              )}
             </Button>
           </form>
         </div>

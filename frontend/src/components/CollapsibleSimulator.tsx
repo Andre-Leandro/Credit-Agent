@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Home, DollarSign, Clock, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Home, DollarSign, Clock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -15,7 +15,7 @@ interface CollapsibleSimulatorProps {
 
 export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSendMessage, isLoading = false }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { requestState, setRequestState } = useRequest();
+  const { requestState } = useRequest();
   const [destination, setDestination] = useState('Construcción de segunda vivienda');
   const [years, setYears] = useState(15);
   const [propertyValue, setPropertyValue] = useState(0);
@@ -23,6 +23,11 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const [salaryAccount, setSalaryAccount] = useState('No');
   const [cvsCap, setCvsCap] = useState('No');
   const { toasts, addToast, removeToast } = useToast();
+
+  // Debug: mostrar qué panel se renderiza
+  useEffect(() => {
+    console.log('🎨 CollapsibleSimulator - Renderizando panel:', requestState === 'simulator' ? '📋 SIMULADOR' : '📄 DOCUMENTACION');
+  }, [requestState]);
 
   const handleSimulation = () => {
     if (propertyValue === 0 || loanAmount === 0 || years === 0) {
@@ -78,7 +83,6 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
 Por favor, procede con la evaluación de mi solicitud.`;
 
     onSendMessage(mensaje);
-    setRequestState('simulator');
     addToast('Documentos enviados al chat', 'success');
   };
 
@@ -211,16 +215,6 @@ Por favor, procede con la evaluación de mi solicitud.`;
             variant="default"
           >
             Enviar al Chat
-          </Button>
-
-          <Button 
-            onClick={() => setRequestState('documentation')}
-            disabled={isLoading}
-            className="w-full h-10 text-sm font-semibold"
-            variant="outline"
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Cargar Documentación
           </Button>
           
           <Button 

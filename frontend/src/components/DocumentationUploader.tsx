@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Upload, X, CheckCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { useToast } from './Toast';
-import { useRequest } from '../contexts/RequestContext';
 
 interface UploadedDoc {
   id: string;
@@ -23,7 +22,6 @@ export const DocumentationUploader: React.FC<DocumentationUploaderProps> = ({
   const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const { addToast } = useToast();
-  const { setRequestState } = useRequest();
 
   const documentTypes = [
     { id: 'dni_frente', label: 'DNI - Frente', required: true },
@@ -206,15 +204,6 @@ export const DocumentationUploader: React.FC<DocumentationUploaderProps> = ({
           variant="default"
         >
           Enviar al Agente
-        </Button>
-
-        <Button
-          onClick={() => setRequestState('simulator')}
-          disabled={isLoading}
-          className="w-full h-10 text-sm font-semibold"
-          variant="outline"
-        >
-          Volver al Simulador
         </Button>
       </div>
     </div>
