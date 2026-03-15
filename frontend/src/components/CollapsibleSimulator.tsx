@@ -18,6 +18,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const { requestState } = useRequest();
   const [destination, setDestination] = useState('Construcción de segunda vivienda');
   const [years, setYears] = useState(15);
+  const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [propertyValue, setPropertyValue] = useState(0);
   const [loanAmount, setLoanAmount] = useState(0);
   const [salaryAccount, setSalaryAccount] = useState('No');
@@ -30,7 +31,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   }, [requestState]);
 
   const handleSimulation = () => {
-    if (propertyValue === 0 || loanAmount === 0 || years === 0) {
+    if (propertyValue === 0 || loanAmount === 0 || years === 0 || monthlyIncome === 0) {
       addToast('Por favor completa todos los campos', 'error');
       return;
     }
@@ -50,6 +51,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
 - Valor de la Propiedad: $${propertyValue.toLocaleString('es-AR')}
 - Monto del Crédito: $${loanAmount.toLocaleString('es-AR')}
 - Plazo: ${years} años
+- Ingreso Mensual: $${monthlyIncome.toLocaleString('es-AR')}
 - Haberes en BNA: ${salaryAccount}
 - Opción Tope CVS: ${cvsCap}
 ¿Puedo proceder con la solicitud?`;
@@ -66,6 +68,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const handleReset = () => {
     setDestination('Construcción de segunda vivienda');
     setYears(15);
+    setMonthlyIncome(0);
     setPropertyValue(0);
     setLoanAmount(0);
     setSalaryAccount('No');
@@ -132,6 +135,24 @@ Por favor, procede con la evaluación de mi solicitud.`;
                 onChange={(e) => setYears(e.target.value === '' ? 0 : Number(e.target.value))}
                 className="text-sm h-10"
                 placeholder="15"
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Ingreso Mensual */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-[#10069f]" />
+                Ingreso Mensual
+              </Label>
+              <Input 
+                type="number"
+                min="0"
+                step="1000"
+                value={monthlyIncome === 0 ? '' : monthlyIncome}
+                onChange={(e) => setMonthlyIncome(e.target.value === '' ? 0 : Number(e.target.value))}
+                className="text-sm h-10"
+                placeholder="50000"
                 disabled={isLoading}
               />
             </div>
