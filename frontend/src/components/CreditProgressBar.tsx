@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Circle, FileText, CheckCircle, Target, Award } from 'lucide-react';
+import { CheckCircle2, Circle, FileText, CheckCircle, Target, Award, Search, FileCheck, Home} from 'lucide-react';
 
 interface ProgressCheckpoint {
   id: string;
@@ -34,16 +34,37 @@ export const CreditProgressBar: React.FC = () => {
       status: 'pending'
     },
     {
-      id: 'doc-approval',
-      label: 'Revisión',
-      description: 'Aprobación de docs',
+      id: 'credit-analysis',
+      label: 'Análisis Crediticio',
+      description: 'Revisión por colaborador humano',
       icon: <CheckCircle className="w-5 h-5" />,
       status: 'pending'
     },
     {
-      id: 'final-approval',
-      label: 'Aprobación',
-      description: 'Aprobación final',
+      id: 'property-search',
+      label: 'Búsqueda de Vivienda',
+      description: 'Identificación de propiedad',
+      icon: <Search className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'titles-plans',
+      label: 'Títulos y Planos',
+      description: 'Documentación de propiedad',
+      icon: <FileCheck className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'appraisal',
+      label: 'Tasación',
+      description: 'Evaluación del inmueble',
+      icon: <Home className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'completed',
+      label: 'Finalizado',
+      description: 'Crédito aprobado',
       icon: <Award className="w-5 h-5" />,
       status: 'pending'
     }
@@ -74,11 +95,17 @@ export const CreditProgressBar: React.FC = () => {
 
       const data = await respuesta.json();
 
+      console.log('📡 Respuesta completa de Lambda:', data);
+
       if (data.status === "success" && data.data) {
+        console.log('✅ Datos recibidos correctamente:', data.data);
         setProgressData(data.data);
         actualizarUI(data.data);
+      } else {
+        console.warn('⚠️ Respuesta inesperada de Lambda:', data);
       }
     } catch (err) {
+      console.error('❌ Error en obtenerProgreso:', err);
       // Silencioso - no mostrar errores
     }
   };
@@ -87,6 +114,14 @@ export const CreditProgressBar: React.FC = () => {
   const actualizarUI = (data: ProgressData) => {
     const estado = (data.estado || '').toUpperCase();
     
+    // DEBUG: Printear el estado que se recibe
+    console.log('🔍 Estado recibido de Lambda:', {
+      estado_raw: data.estado,
+      estado_uppercase: estado,
+      datos_completos: data,
+      timestamp: new Date().toISOString()
+    });
+    
     const nuevoCheckpoints = checkpoints.map(cp => {
       let status: 'completed' | 'current' | 'pending' = 'pending';
 
@@ -94,33 +129,55 @@ export const CreditProgressBar: React.FC = () => {
       switch (estado) {
         case 'PRE_APROBACION':
         case 'PREAPROBACION':
+          console.log('✓ Entró en PRE_APROBACION');
           if (cp.id === 'preapproval') status = 'current';
           break;
         case 'DOCUMENTACION':
         case 'DOCUMENTACIÓN':
+          console.log('✓ Entró en DOCUMENTACION');
           if (cp.id === 'preapproval') status = 'completed';
           if (cp.id === 'documents') status = 'current';
           break;
         case 'REVISION':
         case 'REVISIÓN':
+          console.log('✓ Entró en REVISION');
           if (cp.id === 'preapproval' || cp.id === 'documents') status = 'completed';
-          if (cp.id === 'doc-approval') status = 'current';
+          if (cp.id === 'credit-analysis') status = 'current';
           break;
+        case 'BUSQUEDA_PROPIEDAD':
+        case 'BÚSQUEDA_PROPIEDAD':
+          console.log('✓ Entró en BUSQUEDA_PROPIEDAD');
+          if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'credit-analysis') status = 'completed';
+          if (cp.id === 'property-search') status = 'current';
+          break;
+        case 'TITULOS_CARGADOS':
+        case 'TÍTULOS_CARGADOS':
+          console.log('✓ Entró en TITULOS_CARGADOS');
+          if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'credit-analysis' || cp.id === 'property-search') status = 'completed';
+          if (cp.id === 'titles-plans') status = 'current';
+          break;
+        case 'TASACION':
+        case 'TASACIÓN':
+          console.log('✓ Entró en TASACION');
+          if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'credit-analysis' || cp.id === 'property-search' || cp.id === 'titles-plans') status = 'completed';
+          if (cp.id === 'appraisal') status = 'current';
+          break;
+        case 'FINALIZADO':
+        case 'COMPLETADO':
         case 'APROBADO':
         case 'APROBACION':
         case 'APROBACIÓN':
-          if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'doc-approval') status = 'completed';
-          if (cp.id === 'final-approval') status = 'current';
-          break;
-        case 'COMPLETADO':
-        case 'FINALIZADO':
+          console.log('✓ Entró en FINALIZADO/COMPLETADO/APROBADO');
           status = 'completed';
           break;
+        default:
+          console.warn('⚠️ Estado no reconocido:', estado);
       }
 
       return { ...cp, status };
     });
 
+    console.log('📊 Checkpoints actualizados:', nuevoCheckpoints);
     setCheckpoints(nuevoCheckpoints);
   };
 

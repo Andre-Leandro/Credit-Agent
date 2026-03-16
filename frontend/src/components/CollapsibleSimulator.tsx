@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Home, DollarSign, Clock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select } from './ui/select';
 import { useToast, ToastContainer } from './Toast';
+import DocumentationUploader from './DocumentationUploader';
+import { useRequest } from '../contexts/RequestContext';
 
 interface CollapsibleSimulatorProps {
   onSendMessage: (message: string) => void;
@@ -13,16 +15,23 @@ interface CollapsibleSimulatorProps {
 
 export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSendMessage, isLoading = false }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { requestState } = useRequest();
   const [destination, setDestination] = useState('Construcción de segunda vivienda');
   const [years, setYears] = useState(15);
+  const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [propertyValue, setPropertyValue] = useState(0);
   const [loanAmount, setLoanAmount] = useState(0);
   const [salaryAccount, setSalaryAccount] = useState('No');
   const [cvsCap, setCvsCap] = useState('No');
   const { toasts, addToast, removeToast } = useToast();
 
+  // Debug: mostrar qué panel se renderiza
+  useEffect(() => {
+    console.log('🎨 CollapsibleSimulator - Renderizando panel:', requestState === 'simulator' ? '📋 SIMULADOR' : '📄 DOCUMENTACION');
+  }, [requestState]);
+
   const handleSimulation = () => {
-    if (propertyValue === 0 || loanAmount === 0 || years === 0) {
+    if (propertyValue === 0 || loanAmount === 0 || years === 0 || monthlyIncome === 0) {
       addToast('Por favor completa todos los campos', 'error');
       return;
     }
@@ -33,13 +42,6 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
       addToast('LTV mayor a 80%. Crédito rechazado.', 'error');
       return;
     }
-
-    // Cálculo de cuota
-    const annualRate = 0.04;
-    const monthlyRate = annualRate / 12;
-    const payments = years * 12;
-    const payment = (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, payments)) / 
-                    (Math.pow(1 + monthlyRate, payments) - 1);
     
     // Formattear mensaje para el chat
     const mensaje = `Solicito evaluar mi crédito con los siguientes datos:
@@ -49,6 +51,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
 - Valor de la Propiedad: $${propertyValue.toLocaleString('es-AR')}
 - Monto del Crédito: $${loanAmount.toLocaleString('es-AR')}
 - Plazo: ${years} años
+- Ingreso Mensual: $${monthlyIncome.toLocaleString('es-AR')}
 - Haberes en BNA: ${salaryAccount}
 - Opción Tope CVS: ${cvsCap}
 ¿Puedo proceder con la solicitud?`;
@@ -65,10 +68,25 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const handleReset = () => {
     setDestination('Construcción de segunda vivienda');
     setYears(15);
+    setMonthlyIncome(0);
     setPropertyValue(0);
     setLoanAmount(0);
     setSalaryAccount('No');
     setCvsCap('No');
+  };
+
+  const handleSendDocumentation = (_files: any[]) => {
+    const mensaje = `Hola. Acá te paso los datos para continuar con mi solicitud de crédito:
+
+📄 Documentos Adjuntos:
+- DNI (Frente)
+- DNI (Dorso)
+- Último Recibo de Sueldo
+
+Por favor, procede con la evaluación de mi solicitud.`;
+
+    onSendMessage(mensaje);
+    addToast('Documentos enviados al chat', 'success');
   };
 
   return (
@@ -79,8 +97,10 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
           isOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full'
         } overflow-hidden flex flex-col`}
       >
-        <div className="flex-1 overflow-y-auto p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6 mt-6">Simulador de Crédito</h2>
+        {requestState === 'simulator' ? (
+          <>
+            <div className="flex-1 overflow-y-auto p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-6 mt-6">Simulador de Crédito</h2>
           
           <div className="space-y-5">
             {/* Destino */}
@@ -115,6 +135,24 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
                 onChange={(e) => setYears(e.target.value === '' ? 0 : Number(e.target.value))}
                 className="text-sm h-10"
                 placeholder="15"
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Ingreso Mensual */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-[#10069f]" />
+                Ingreso Mensual
+              </Label>
+              <Input 
+                type="number"
+                min="0"
+                step="1000"
+                value={monthlyIncome === 0 ? '' : monthlyIncome}
+                onChange={(e) => setMonthlyIncome(e.target.value === '' ? 0 : Number(e.target.value))}
+                className="text-sm h-10"
+                placeholder="50000"
                 disabled={isLoading}
               />
             </div>
@@ -209,6 +247,13 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
             Limpiar
           </Button>
         </div>
+        </>
+        ) : (
+          <DocumentationUploader
+            onSendDocumentation={handleSendDocumentation}
+            isLoading={isLoading}
+          />
+        )}
       </div>
 
       {/* Toggle Button */}
