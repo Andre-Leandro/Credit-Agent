@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Circle, FileText, CheckCircle, Target, Award } from 'lucide-react';
+import { CheckCircle2, Circle, FileText, CheckCircle, Target, Award, Search, FileCheck, Home} from 'lucide-react';
 
 interface ProgressCheckpoint {
   id: string;
@@ -34,16 +34,37 @@ export const CreditProgressBar: React.FC = () => {
       status: 'pending'
     },
     {
-      id: 'doc-approval',
-      label: 'Revisión',
-      description: 'Aprobación de docs',
+      id: 'credit-analysis',
+      label: 'Análisis Crediticio',
+      description: 'Revisión por colaborador humano',
       icon: <CheckCircle className="w-5 h-5" />,
       status: 'pending'
     },
     {
-      id: 'final-approval',
-      label: 'Aprobación',
-      description: 'Aprobación final',
+      id: 'property-search',
+      label: 'Búsqueda de Vivienda',
+      description: 'Identificación de propiedad',
+      icon: <Search className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'titles-plans',
+      label: 'Títulos y Planos',
+      description: 'Documentación de propiedad',
+      icon: <FileCheck className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'appraisal',
+      label: 'Tasación',
+      description: 'Evaluación del inmueble',
+      icon: <Home className="w-5 h-5" />,
+      status: 'pending'
+    },
+    {
+      id: 'completed',
+      label: 'Finalizado',
+      description: 'Crédito aprobado',
       icon: <Award className="w-5 h-5" />,
       status: 'pending'
     }
@@ -121,18 +142,32 @@ export const CreditProgressBar: React.FC = () => {
         case 'REVISIÓN':
           console.log('✓ Entró en REVISION');
           if (cp.id === 'preapproval' || cp.id === 'documents') status = 'completed';
-          if (cp.id === 'doc-approval') status = 'current';
+          if (cp.id === 'credit-analysis') status = 'current';
           break;
+        case 'BUSQUEDA_PROPIEDAD':
+        case 'BÚSQUEDA_PROPIEDAD':
+          console.log('✓ Entró en BUSQUEDA_PROPIEDAD');
+          if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'credit-analysis') status = 'completed';
+          if (cp.id === 'property-search') status = 'current';
+          break;
+        case 'TITULOS_CARGADOS':
+        case 'TÍTULOS_CARGADOS':
+          console.log('✓ Entró en TITULOS_CARGADOS');
+          if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'credit-analysis' || cp.id === 'property-search') status = 'completed';
+          if (cp.id === 'titles-plans') status = 'current';
+          break;
+        case 'TASACION':
+        case 'TASACIÓN':
+          console.log('✓ Entró en TASACION');
+          if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'credit-analysis' || cp.id === 'property-search' || cp.id === 'titles-plans') status = 'completed';
+          if (cp.id === 'appraisal') status = 'current';
+          break;
+        case 'FINALIZADO':
+        case 'COMPLETADO':
         case 'APROBADO':
         case 'APROBACION':
         case 'APROBACIÓN':
-          console.log('✓ Entró en APROBACION/APROBADO');
-          if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'doc-approval') status = 'completed';
-          if (cp.id === 'final-approval') status = 'current';
-          break;
-        case 'COMPLETADO':
-        case 'FINALIZADO':
-          console.log('✓ Entró en COMPLETADO/FINALIZADO');
+          console.log('✓ Entró en FINALIZADO/COMPLETADO/APROBADO');
           status = 'completed';
           break;
         default:

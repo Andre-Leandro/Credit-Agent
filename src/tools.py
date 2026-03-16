@@ -78,6 +78,7 @@ def simulate_credit_check(dni: str, ingreso_mensual: float, monto_credito: float
             return f"❌ Error al guardar en base de datos: {str(e)}"
     
     return "❌ Rechazado por política de riesgo."
+
 @tool(args_schema=SolicitudInput)
 def gestionar_solicitud(dni: str, estado: str, datos_extra: dict = None) -> str:
     try:
