@@ -23,6 +23,7 @@ class DocumentacionInput(BaseModel):
 class CreditCheckInput(BaseModel):
     """Input detallado para el Simulador de Crédito."""
     dni: str = Field(description="DNI del cliente")
+    email: str = Field(description="Email del cliente")
     ingreso_mensual: float = Field(description="Ingreso neto mensual")
     monto_credito: float = Field(description="Monto total del crédito solicitado")
     valor_propiedad: float = Field(description="Valor de la propiedad")
@@ -39,7 +40,7 @@ class SolicitudInput(BaseModel):
 # --- HERRAMIENTAS (Tools) ---
 
 @tool(args_schema=CreditCheckInput)
-def simulate_credit_check(dni: str, ingreso_mensual: float, monto_credito: float, 
+def simulate_credit_check(dni: str, email: str, ingreso_mensual: float, monto_credito: float, 
                           valor_propiedad: float, plazo_anos: int, destino: str, 
                           haberes_bna: bool) -> str:
     """
@@ -57,6 +58,7 @@ def simulate_credit_check(dni: str, ingreso_mensual: float, monto_credito: float
             # Tip: Convertir a str primero es la forma más segura de mantener la precisión
             solicitud_item = {
                 'dni': dni,
+                'email': email,
                 'estado': 'DOCUMENTACION',
                 'ingreso_mensual': Decimal(str(ingreso_mensual)),
                 'monto_credito': Decimal(str(monto_credito)),

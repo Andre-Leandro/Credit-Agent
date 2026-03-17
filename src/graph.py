@@ -47,6 +47,7 @@ ESTILO:
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     dni: str
+    emai: str
 
 _llm = None
 
