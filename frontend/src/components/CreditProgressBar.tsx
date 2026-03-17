@@ -127,46 +127,36 @@ export const CreditProgressBar: React.FC = () => {
 
       // Mapear estados de DynamoDB a estados de UI (coincidiendo con los nombres exactos)
       switch (estado) {
-        case 'PRE_APROBACION':
         case 'PREAPROBACION':
           console.log('✓ Entró en PRE_APROBACION');
           if (cp.id === 'preapproval') status = 'current';
           break;
         case 'DOCUMENTACION':
-        case 'DOCUMENTACIÓN':
           console.log('✓ Entró en DOCUMENTACION');
           if (cp.id === 'preapproval') status = 'completed';
           if (cp.id === 'documents') status = 'current';
           break;
         case 'REVISION':
-        case 'REVISIÓN':
           console.log('✓ Entró en REVISION');
           if (cp.id === 'preapproval' || cp.id === 'documents') status = 'completed';
           if (cp.id === 'credit-analysis') status = 'current';
           break;
         case 'BUSQUEDA_PROPIEDAD':
-        case 'BÚSQUEDA_PROPIEDAD':
           console.log('✓ Entró en BUSQUEDA_PROPIEDAD');
           if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'credit-analysis') status = 'completed';
           if (cp.id === 'property-search') status = 'current';
           break;
         case 'TITULOS_CARGADOS':
-        case 'TÍTULOS_CARGADOS':
           console.log('✓ Entró en TITULOS_CARGADOS');
           if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'credit-analysis' || cp.id === 'property-search') status = 'completed';
           if (cp.id === 'titles-plans') status = 'current';
           break;
         case 'TASACION':
-        case 'TASACIÓN':
           console.log('✓ Entró en TASACION');
           if (cp.id === 'preapproval' || cp.id === 'documents' || cp.id === 'credit-analysis' || cp.id === 'property-search' || cp.id === 'titles-plans') status = 'completed';
           if (cp.id === 'appraisal') status = 'current';
           break;
         case 'FINALIZADO':
-        case 'COMPLETADO':
-        case 'APROBADO':
-        case 'APROBACION':
-        case 'APROBACIÓN':
           console.log('✓ Entró en FINALIZADO/COMPLETADO/APROBADO');
           status = 'completed';
           break;
