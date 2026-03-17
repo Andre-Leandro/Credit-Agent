@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Home, DollarSign, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, DollarSign, Clock, FileText, X, ZoomIn } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -7,6 +7,7 @@ import { Select } from './ui/select';
 import { useToast, ToastContainer } from './Toast';
 import DocumentationUploader from './DocumentationUploader';
 import { useRequest } from '../contexts/RequestContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface CollapsibleSimulatorProps {
   onSendMessage: (message: string) => void;
@@ -15,7 +16,10 @@ interface CollapsibleSimulatorProps {
 
 export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSendMessage, isLoading = false }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
   const { requestState } = useRequest();
+  const { user } = useAuth();
   const [destination, setDestination] = useState('Construcción de segunda vivienda');
   const [years, setYears] = useState(15);
   const [monthlyIncome, setMonthlyIncome] = useState(0);
@@ -24,6 +28,11 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const [salaryAccount, setSalaryAccount] = useState('No');
   const [cvsCap, setCvsCap] = useState('No');
   const { toasts, addToast, removeToast } = useToast();
+
+  // Estados para documentos
+  const REVIEW_STATES = ['REVISION', 'BUSQUEDA_PROPIEDAD', 'TITULOS_CARGADOS', 'TASACION', 'FINALIZADO'];
+  const isInReviewState = user?.estado && REVIEW_STATES.includes(user.estado.toUpperCase());
+  const fotos = user?.fotos_visibles ? (Array.isArray(user.fotos_visibles) ? user.fotos_visibles : [user.fotos_visibles]) : [];
 
   // Debug: mostrar qué panel se renderiza
   useEffect(() => {
@@ -248,6 +257,56 @@ Por favor, procede con la evaluación de mi solicitud.`;
           </Button>
         </div>
         </>
+        ) : isInReviewState ? (
+          // Vista de Documentos Cargados para estados de revisión
+          <div className="flex-1 overflow-y-auto p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 mt-6">Documentos Cargados</h2>
+            
+            {fotos.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex flex-col">
+                  <button
+                    onClick={() => {
+                      setZoomImage(fotos[0]);
+                      setZoomScale(1);
+                    }}
+                    className="relative block w-full p-0 m-0 bg-gray-200 hover:opacity-90 transition-opacity cursor-zoom-in group rounded-t-lg overflow-hidden"
+                  >
+                    <img 
+                      src={fotos[0]} 
+                      alt="Documento" 
+                      className="w-full h-auto object-contain max-h-96 m-0 block" 
+                    />
+                    <div className="absolute top-2 right-2 bg-black/50 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ZoomIn className="w-5 h-5 text-white" />
+                    </div>
+                  </button>
+
+                  <div className="px-3 py-2.5 m-0 bg-white border border-gray-200 rounded-b-lg border-t-0">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-[#10069f]" />
+                      <span className="text-sm text-gray-700 font-medium">Documento 1</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info de documentos */}
+                {fotos.length > 1 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-xs text-blue-700">
+                      <span className="font-semibold">{fotos.length} documento{fotos.length !== 1 ? 's' : ''} cargado{fotos.length !== 1 ? 's' : ''}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-700">
+                  No hay documentos cargados aún.
+                </p>
+              </div>
+            )}
+          </div>
         ) : (
           <DocumentationUploader
             onSendDocumentation={handleSendDocumentation}
@@ -271,6 +330,57 @@ Por favor, procede con la evaluación de mi solicitud.`;
           <ChevronRight className="w-5 h-5" />
         )}
       </button>
+
+      {/* Modal de Zoom */}
+      {zoomImage && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="relative bg-black rounded-lg shadow-2xl max-w-4xl w-full">
+            {/* Botón cerrar */}
+            <button
+              onClick={() => setZoomImage(null)}
+              className="absolute top-4 right-4 z-10 bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-all text-white"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Contenedor de imagen con scroll */}
+            <div className="flex items-center justify-center overflow-auto max-h-screen">
+              <img
+                src={zoomImage}
+                alt="Zoom"
+                className="w-full h-auto object-contain"
+                style={{ transform: `scale(${zoomScale})` }}
+              />
+            </div>
+
+            {/* Controles de zoom */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-3 bg-black/50 rounded-lg p-3 backdrop-blur-sm">
+              <button
+                onClick={() => setZoomScale(Math.max(1, zoomScale - 0.2))}
+                className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded transition-all text-sm font-medium"
+              >
+                −
+              </button>
+              <span className="text-white text-sm font-medium min-w-16 text-center">
+                {Math.round(zoomScale * 100)}%
+              </span>
+              <button
+                onClick={() => setZoomScale(Math.min(3, zoomScale + 0.2))}
+                className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded transition-all text-sm font-medium"
+              >
+                +
+              </button>
+              <div className="w-px h-6 bg-white/20"></div>
+              <button
+                onClick={() => setZoomScale(1)}
+                className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded transition-all text-sm font-medium"
+              >
+                Ajustar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>

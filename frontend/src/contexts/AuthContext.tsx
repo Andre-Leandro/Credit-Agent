@@ -4,6 +4,9 @@ interface User {
   email: string;
   dni: string;
   estado?: string;
+  fotos_s3?: string[] | string;
+  fotos_visibles?: string[] | string;
+  [key: string]: any;
 }
 
 interface AuthContextType {
@@ -54,21 +57,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const data = await response.json();
 
-        if (data.status === 'success' && data.data?.estado) {
+        if (data.status === 'success' && data.data) {
           const nuevoEstado = data.data.estado;
           console.log('🔄 AuthContext sincronizado:', { 
             dni: user.dni,
             estado_anterior: user.estado,
-            estado_nuevo: nuevoEstado 
+            estado_nuevo: nuevoEstado,
+            fotos_visibles: data.data.fotos_visibles ? 'Sí' : 'No'
           });
 
-          // Actualizar solo si el estado cambió
-          if (user.estado !== nuevoEstado) {
-            const updatedUser = { ...user, estado: nuevoEstado };
-            setUser(updatedUser);
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-            console.log('✅ AuthContext actualizado - Panel lateral debería cambiar ahora');
-          }
+          // Actualizar estado completo con todos los datos del Lambda
+          const updatedUser = { 
+            email: user.email,
+            dni: user.dni,
+            estado: nuevoEstado,
+            fotos_visibles: data.data.fotos_visibles || [],
+            fotos_s3: data.data.fotos_s3 || [],
+            ...data.data // Copiar todos los campos adicionales
+          };
+          
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          console.log('✅ AuthContext actualizado con fotos_visibles');
         }
       } catch (err) {
         console.error('❌ Error sincronizando estado en AuthContext:', err);
