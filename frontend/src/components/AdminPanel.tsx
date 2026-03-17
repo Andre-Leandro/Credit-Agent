@@ -93,7 +93,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentStatus, onStatusU
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-2xl z-50 border border-gray-200">
+        <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-lg shadow-2xl z-50 border border-gray-200">
           {/* Header del dropdown */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <h3 className="font-semibold text-gray-900">Avance Manual</h3>

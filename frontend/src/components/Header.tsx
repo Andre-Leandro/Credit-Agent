@@ -36,11 +36,13 @@ export const Header = () => {
           </div>
 
           {/* Right side actions */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-2">
             {user && (
-              <ProfileMenu 
-                currentStatus={currentStatus}
-              />
+              <>
+                <ProfileMenu 
+                  currentStatus={currentStatus}
+                />
+              </>
             )}
           </div>
 

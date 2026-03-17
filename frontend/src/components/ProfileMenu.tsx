@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, LogOut, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from './Toast';
+import { useChatHistory } from '../hooks/useChatHistory';
 
 interface ProfileMenuProps {
   currentStatus?: string;
@@ -12,6 +13,16 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ currentStatus = '' }) 
   const [isLoading, setIsLoading] = useState(false);
   const { user, logout } = useAuth();
   const { addToast } = useToast();
+  const { isEnabled: historyEnabled, toggleHistorySaving } = useChatHistory(user?.dni);
+
+  const handleToggleHistory = (enabled: boolean) => {
+    toggleHistorySaving(enabled);
+    if (enabled) {
+      addToast('✅ Historial guardado activado', 'success');
+    } else {
+      addToast('❌ Historial borrado', 'success');
+    }
+  };
 
   const MANUAL_ADVANCE_STATES = ['REVISION', 'BUSQUEDA_PROPIEDAD', 'TITULOS_CARGADOS', 'TASACION'];
   
@@ -76,10 +87,10 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ currentStatus = '' }) 
       {/* Profile button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-white group w-44"
+        className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/10 transition-all duration-200 text-white group w-72"
       >
-        <div className="flex flex-col items-start">
-          <p className="text-sm font-medium">{user?.email}</p>
+        <div className="flex flex-col items-start min-w-0">
+          <p className="text-sm font-medium truncate">{user?.email}</p>
           <p className="text-xs text-white/70">{user?.dni}</p>
         </div>
         <ChevronDown className={`w-4 h-4 transition-transform duration-200 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
@@ -87,7 +98,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ currentStatus = '' }) 
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-lg shadow-2xl z-50 border border-gray-100 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg shadow-2xl z-50 border border-gray-100 overflow-hidden">
           {/* Menu Items */}
           <div className="divide-y divide-gray-100">
             {/* Avanzar - solo si está en estado permitido */}
@@ -106,6 +117,19 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ currentStatus = '' }) 
                 )}
               </button>
             )}
+
+            {/* Guardar Historial */}
+            <button
+              onClick={() => handleToggleHistory(!historyEnabled)}
+              disabled={isLoading}
+              className="w-full px-4 py-3 text-left hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${historyEnabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <p className="font-medium text-gray-900">Guardar historial</p>
+              </div>
+              <span className="text-xs font-semibold text-gray-500">{historyEnabled ? 'ON' : 'OFF'}</span>
+            </button>
 
             {/* Cerrar Sesión */}
             <button

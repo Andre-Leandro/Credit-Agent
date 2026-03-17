@@ -3,6 +3,8 @@ import { Send, Paperclip, File, Loader, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useChatAgent } from '../hooks/useChatAgent';
+import { useChatHistory } from '../hooks/useChatHistory';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ChatMessage {
   id: string;
@@ -24,15 +26,40 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const { sendMessage, isLoading, error } = useChatAgent();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      type: 'agent',
-      message: '¡Hola! Soy tu asistente de crédito. Puedes usar el simulador de la izquierda para obtener una pre-aprobación, o escribeme aquí directamente. ¿En qué puedo ayudarte?',
-      timestamp: new Date(),
-    },
-  ]);
+  const { user } = useAuth();
+  const { isEnabled: historyEnabled, loadChatHistory, saveChatHistory } = useChatHistory(user?.dni);
+  
+  // Mensaje inicial del agente
+  const initialMessage: ChatMessage = {
+    id: '1',
+    type: 'agent',
+    message: '¡Hola! Soy tu asistente de crédito. Puedes usar el simulador de la izquierda para obtener una pre-aprobación, o escribeme aquí directamente. ¿En qué puedo ayudarte?',
+    timestamp: new Date(),
+  };
+
+  const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
   const [inputValue, setInputValue] = useState('');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Cargar historial del chat al montar el componente
+  useEffect(() => {
+    if (!isInitialized) {
+      const savedHistory = loadChatHistory();
+      if (savedHistory.length > 0) {
+        setMessages(savedHistory);
+      } else {
+        setMessages([initialMessage]);
+      }
+      setIsInitialized(true);
+    }
+  }, [isInitialized, loadChatHistory]);
+
+  // Guardar historial cuando cambien los mensajes (pero no en la inicialización)
+  useEffect(() => {
+    if (isInitialized && historyEnabled) {
+      saveChatHistory(messages);
+    }
+  }, [messages, isInitialized, historyEnabled, saveChatHistory]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
