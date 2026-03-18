@@ -22,7 +22,7 @@ async def invoke(payload: Dict[str, Any], context: Optional[RequestContext] = No
     image_b64 = payload.get("image")
     image_type = payload.get("image_type", "image/png")
     
-    # --- 1. CAPTURAR EL DNI QUE VIENE DEL PASAMANOS ---
+    # --- 1. CAPTURAR DATOS DEL PAYLOAD ---
     dni = payload.get("dni") 
     email = payload.get("email")
     
@@ -35,14 +35,23 @@ async def invoke(payload: Dict[str, Any], context: Optional[RequestContext] = No
             cleaned_b64 = image_b64
         cleaned_b64 = cleaned_b64.strip().replace("\n", "").replace("\r", "")
 
+    # --- 2. CONSTRUIR EL "SOPLO" PARA EL AGENTE ---
+    # Creamos un encabezado que contenga ambos datos si existen
+    header = ""
+    if dni: header += f"[DNI: {dni}] "
+    if email: header += f"[Email: {email}] "
+    
+    # El texto final que leerá el Agente
+    prompt_con_contexto = f"{header}{prompt}"
+
     agent_graph = await get_graph()
 
-    # --- CONSTRUIR CONTENIDO MULTIMODAL ---
+    # --- 3. CONSTRUIR CONTENIDO MULTIMODAL ---
     if cleaned_b64:
         content = [
             {
                 "type": "text", 
-                "text": f"[DNI del Usuario: {dni}] {prompt}" if dni else prompt
+                "text": prompt_con_contexto # <--- Inyectamos DNI y Email acá
             },
             {
                 "type": "image",
@@ -54,13 +63,16 @@ async def invoke(payload: Dict[str, Any], context: Optional[RequestContext] = No
             }
         ]
     else:
-        # Si no hay imagen, igual le pasamos el DNI en el texto para que el agente lo tenga presente
-        content = f"[DNI del Usuario: {dni}] {prompt}" if dni else prompt
+        # Si no hay imagen, mandamos el texto con el encabezado
+        content = prompt_con_contexto
 
-    # --- 2. INVOCAR EL GRAFO CON EL DNI EN EL ESTADO ---
-    # Pasamos el DNI como parte del estado inicial para que las Tools lo vean
+    # --- 4. INVOCAR EL GRAFO CON EL ESTADO COMPLETO ---
     result = await agent_graph.ainvoke(
-        {"messages": [HumanMessage(content=content)], "dni": dni, "email": email}
+        {
+            "messages": [HumanMessage(content=content)], 
+            "dni": dni, 
+            "email": email # <--- Asegurate que en graph.py diga 'email' y no 'emai'
+        }
     )
 
     final_msg = result["messages"][-1]

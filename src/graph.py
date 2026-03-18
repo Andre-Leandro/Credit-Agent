@@ -45,7 +45,7 @@ MANEJO DE ERRORES Y ESTILO:
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     dni: str
-    emai: str
+    email: str
 
 _llm = None
 
