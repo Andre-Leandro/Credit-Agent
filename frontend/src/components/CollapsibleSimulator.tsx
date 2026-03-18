@@ -10,7 +10,7 @@ import { useRequest } from '../contexts/RequestContext';
 import { useAuth } from '../contexts/AuthContext';
 
 interface CollapsibleSimulatorProps {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, files?: File[]) => void;
   isLoading?: boolean;
 }
 
@@ -84,7 +84,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
     setCvsCap('No');
   };
 
-  const handleSendDocumentation = (_files: any[]) => {
+  const handleSendDocumentation = (files: any[]) => {
     const mensaje = `Hola. Acá te paso los datos para continuar con mi solicitud de crédito:
 
 📄 Documentos Adjuntos:
@@ -94,7 +94,10 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
 
 Por favor, procede con la evaluación de mi solicitud.`;
 
-    onSendMessage(mensaje);
+    // Convertir UploadedDoc[] a File[]
+    const fileObjects = files.map((doc) => doc.file);
+    
+    onSendMessage(mensaje, fileObjects);
     addToast('Documentos enviados al chat', 'success');
   };
 

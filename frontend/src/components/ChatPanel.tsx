@@ -71,20 +71,23 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
 
   // Exponer el método sendMessageDirect a través del ref
   useImperativeHandle(ref, () => ({
-    sendMessageDirect: async (message: string) => {
-      if (message.trim()) {
+    sendMessageDirect: async (message: string, files?: File[]) => {
+      if (message.trim() || (files && files.length > 0)) {
+        const filesToSend = files || [];
+        
         const userMessage: ChatMessage = {
           id: String(messages.length + 1),
           type: 'user',
           message: message,
           timestamp: new Date(),
+          files: filesToSend,
         };
 
         setMessages((prev) => [...prev, userMessage]);
 
         const response = await sendMessage({
           message: message,
-          files: [],
+          files: filesToSend,
         });
 
         const agentMessage: ChatMessage = {
