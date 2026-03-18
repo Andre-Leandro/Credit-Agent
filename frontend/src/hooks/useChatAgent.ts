@@ -51,9 +51,12 @@ export const useChatAgent = () => {
         prompt: request.message,
       };
 
-      // Agregar DNI si existe
+      // Agregar DNI y email si existen
       if (dni) {
         payload.dni = dni;
+      }
+      if (user?.email) {
+        payload.email = user.email;
       }
 
       // Si hay imágenes, convertir a base64
