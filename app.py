@@ -24,6 +24,7 @@ async def invoke(payload: Dict[str, Any], context: Optional[RequestContext] = No
     
     # --- 1. CAPTURAR EL DNI QUE VIENE DEL PASAMANOS ---
     dni = payload.get("dni") 
+    email = payload.get("email")
     
     # --- LIMPIEZA DE BASE64 ---
     cleaned_b64 = None
@@ -59,7 +60,7 @@ async def invoke(payload: Dict[str, Any], context: Optional[RequestContext] = No
     # --- 2. INVOCAR EL GRAFO CON EL DNI EN EL ESTADO ---
     # Pasamos el DNI como parte del estado inicial para que las Tools lo vean
     result = await agent_graph.ainvoke(
-        {"messages": [HumanMessage(content=content)], "dni": dni}
+        {"messages": [HumanMessage(content=content)], "dni": dni, "email": email}
     )
 
     final_msg = result["messages"][-1]

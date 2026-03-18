@@ -15,7 +15,27 @@ export const RequestProvider = ({ children }: { children: ReactNode }) => {
   // Determinar estado basado en el usuario desde Lambda (solo lectura)
   const requestState = useMemo(() => {
     const estado = (user?.estado || 'PRE_APROBACION').toUpperCase();
-    const state = estado === 'DOCUMENTACION' || estado === 'DOCUMENTACIÓN' ? 'documentation' : 'simulator';
+    
+    // Estados que muestran documentos en lugar del simulador
+    const DOCUMENTATION_STATES = [
+      'DOCUMENTACION',
+      'DOCUMENTACIÓN',
+      'REVISION',
+      'REVISIÓN',
+      'BUSQUEDA_PROPIEDAD',
+      'BÚSQUEDA_PROPIEDAD',
+      'TITULOS_CARGADOS',
+      'TÍTULOS_CARGADOS',
+      'TASACION',
+      'TASACIÓN',
+      'FINALIZADO',
+      'COMPLETADO',
+      'APROBADO',
+      'APROBACION',
+      'APROBACIÓN'
+    ];
+    
+    const state = DOCUMENTATION_STATES.includes(estado) ? 'documentation' : 'simulator';
     
     console.log('📋 RequestContext - Renderizando:', {
       user_estado: user?.estado,

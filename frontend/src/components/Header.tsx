@@ -1,11 +1,19 @@
 import { Home, Menu, LogOut } from 'lucide-react';
-import { Button } from './ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import ProfileMenu from './ProfileMenu';
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<string>('');
   const { user, logout } = useAuth();
+
+  // Obtener estado actual del usuario
+  useEffect(() => {
+    if (user?.estado) {
+      setCurrentStatus(user.estado);
+    }
+  }, [user?.estado]);
 
   const handleLogout = () => {
     logout();
@@ -26,22 +34,14 @@ export const Header = () => {
               <p className="text-sm text-white/70">Créditos Hipotecarios</p>
             </div>
           </div>
+
           {/* Right side actions */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-2">
             {user && (
               <>
-                <div className="flex flex-col items-end">
-                  <p className="text-sm text-white font-medium">{user.email}</p>
-                  <p className="text-xs text-white/70">DNI: {user.dni}</p>
-                </div>
-                <Button
-                  onClick={handleLogout}
-                  variant="ghost"
-                  className="text-white hover:bg-red-600/30 border border-white/30 flex items-center gap-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Salir
-                </Button>
+                <ProfileMenu 
+                  currentStatus={currentStatus}
+                />
               </>
             )}
           </div>
