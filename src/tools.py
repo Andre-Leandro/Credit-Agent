@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 import base64
 from langgraph.prebuilt import InjectedState
 from langchain_core.messages import HumanMessage
+import json
 
 # Inicializamos DynamoDB
 REGION = 'us-east-1'
@@ -37,7 +38,99 @@ class SolicitudInput(BaseModel):
     estado: Optional[str] = Field(None, description="Nuevo estado: 'PRE_APROBACION', 'DOCUMENTACION', etc.")
     datos_extra: Optional[dict] = Field(None, description="Diccionario con datos del simulador u otros")
 
+# 1. Agregamos el esquema de entrada
+class VisionInput(BaseModel):
+    dni_esperado: str = Field(description="El número de DNI que el usuario dijo tener y queremos verificar.")
+
 # --- HERRAMIENTAS (Tools) ---
+
+# 2. La Tool Maestra
+@tool(args_schema=VisionInput)
+def validar_documento_vision(dni_esperado: str, state: Annotated[dict, InjectedState]) -> str:
+    """Usa Claude 3.5 Sonnet para peritar el DNI en la imagen."""
+    bedrock_runtime = boto3.client('bedrock-runtime', region_name='us-east-1')
+    
+    try:
+        # 1. Extraer imagen del historial
+        mensajes = state.get("messages", [])
+        image_b64 = None
+        for m in reversed(mensajes):
+            if isinstance(m, HumanMessage) and isinstance(m.content, list):
+                for parte in m.content:
+                    if isinstance(parte, dict) and parte.get("type") == "image":
+                        image_b64 = parte.get("source", {}).get("data")
+                        if image_b64: break
+            if image_b64: break
+
+        if not image_b64:
+            return "❌ No se encontró imagen en el chat."
+
+        pure_b64 = image_b64.split(",")[1] if "," in image_b64 else image_b64
+
+        prompt_perito = f"""
+        Analizá la imagen adjunta. 
+        DNI ESPERADO: {dni_esperado}
+
+        INSTRUCCIONES CRÍTICAS:
+        - Si la imagen NO es un DNI o documento de identidad, respondé con 'es_documento_valido': false y 'match': false.
+        - Si es un DNI, extraé el número y comparalo.
+        - BAJO NINGUNA CIRCUNSTANCIA respondas con texto natural. 
+        - Tu respuesta debe ser EXCLUSIVAMENTE un objeto JSON válido.
+
+        FORMATO DE SALIDA OBLIGATORIO:
+        {{
+            "match": bool,
+            "dni_detectado": "string o 'N/A'",
+            "es_documento_valido": bool,
+            "motivo_rechazo": "Explicación breve si falló",
+            "confianza": float (0.0 a 1.0)
+        }}
+        """
+
+        # 2. Llamada a Bedrock
+        body = json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1000,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {"type": "base64", "media_type": "image/png", "data": pure_b64}
+                        },
+                        {"type": "text", "text": prompt_perito}
+                    ]
+                }
+            ]
+        })
+
+        response = bedrock_runtime.invoke_model(
+            modelId="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            body=body
+        )
+
+        # --- ACÁ ESTÁ EL FIX ---
+        # Leemos el body una sola vez y lo guardamos
+        response_body = response['body'].read().decode('utf-8')
+        result = json.loads(response_body)
+        raw_text = result['content'][0]['text']
+
+        # Limpiamos por si Claude manda texto fuera del JSON (Markdown backticks, etc)
+        if "{" in raw_text:
+            start = raw_text.find("{")
+            end = raw_text.rfind("}") + 1
+            analisis = json.loads(raw_text[start:end])
+        else:
+            return f"❌ Error: La IA no devolvió JSON. Respuesta: {raw_text}"
+
+        if analisis.get('match') and analisis.get('es_documento_valido') and analisis.get('confianza', 0) > 0.7:
+            return f"✅ VALIDACIÓN EXITOSA: DNI {analisis['dni_detectado']} confirmado."
+        
+        return f"❌ VALIDACIÓN FALLIDA: {analisis.get('motivo_rechazo', 'No coincide el DNI.')}"
+
+    except Exception as e:
+        return f"❌ Error en peritaje: {str(e)}"
 
 @tool(args_schema=CreditCheckInput)
 def simulate_credit_check(dni: str, email: str, ingreso_mensual: float, monto_credito: float, 
