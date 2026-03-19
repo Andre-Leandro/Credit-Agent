@@ -47,60 +47,71 @@ class VisionInput(BaseModel):
 # 2. La Tool Maestra
 @tool(args_schema=VisionInput)
 def validar_documento_vision(dni_esperado: str, state: Annotated[dict, InjectedState]) -> str:
-    """Usa Claude 3.5 Sonnet para peritar el DNI en la imagen."""
+    """
+    Analiza un conjunto de imágenes para validar: Frente DNI, Dorso DNI y Recibo de Sueldo.
+    """
     bedrock_runtime = boto3.client('bedrock-runtime', region_name='us-east-1')
     
     try:
-        # 1. Extraer imagen del historial
+        # 1. Extraer TODAS las imágenes del último mensaje del usuario
         mensajes = state.get("messages", [])
-        image_b64 = None
+        bloques_imagenes_claude = []
+        
         for m in reversed(mensajes):
             if isinstance(m, HumanMessage) and isinstance(m.content, list):
                 for parte in m.content:
                     if isinstance(parte, dict) and parte.get("type") == "image":
-                        image_b64 = parte.get("source", {}).get("data")
-                        if image_b64: break
-            if image_b64: break
+                        b64_data = parte.get("source", {}).get("data")
+                        # Limpiamos el base64 si es necesario
+                        pure_b64 = b64_data.split(",")[1] if "," in b64_data else b64_data
+                        
+                        bloques_imagenes_claude.append({
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": pure_b64
+                            }
+                        })
+                
+                # Si encontramos imágenes en este mensaje, no seguimos buscando en anteriores
+                if bloques_imagenes_claude:
+                    break
 
-        if not image_b64:
-            return "❌ No se encontró imagen en el chat."
+        if not bloques_imagenes_claude:
+            return "❌ No se encontraron imágenes en el chat. Por favor, subí las fotos de tu DNI (frente y dorso) y el recibo de sueldo."
 
-        pure_b64 = image_b64.split(",")[1] if "," in image_b64 else image_b64
-
+        # 2. Prompt "Perito Combo"
         prompt_perito = f"""
-        Analizá la imagen adjunta. 
-        DNI ESPERADO: {dni_esperado}
+        Analizá las imágenes adjuntas. Deben conformar el legajo del DNI: {dni_esperado}.
+        
+        TAREAS:
+        1. FRENTE DNI: ¿Está presente? ¿Coincide el número con {dni_esperado}?
+        2. DORSO DNI: ¿Está presente? ¿Es un documento válido? ¿Coincide el número con {dni_esperado}?
+        3. RECIBO DE SUELDO: ¿Está presente? ¿Es un recibo legible y de la persona de {dni_esperado}?
 
-        INSTRUCCIONES CRÍTICAS:
-        - Si la imagen NO es un DNI o documento de identidad, respondé con 'es_documento_valido': false y 'match': false.
-        - Si es un DNI, extraé el número y comparalo.
-        - BAJO NINGUNA CIRCUNSTANCIA respondas con texto natural. 
-        - Tu respuesta debe ser EXCLUSIVAMENTE un objeto JSON válido.
-
-        FORMATO DE SALIDA OBLIGATORIO:
+        INSTRUCCIÓN: Si falta alguna de estas 3 cosas, indicá cuál falta en 'motivo_rechazo'.
+        
+        RESPONDÉ ÚNICAMENTE EN JSON:
         {{
-            "match": bool,
-            "dni_detectado": "string o 'N/A'",
-            "es_documento_valido": bool,
-            "motivo_rechazo": "Explicación breve si falló",
-            "confianza": float (0.0 a 1.0)
+            "frente_ok": bool,
+            "dorso_ok": bool,
+            "recibo_ok": bool,
+            "dni_detectado": "numero o N/A",
+            "motivo_rechazo": "Explicación detallada de qué falta o qué está mal",
+            "todo_validado": bool (true solo si los 3 anteriores son true)
         }}
         """
 
-        # 2. Llamada a Bedrock
+        # 3. Llamada a Bedrock con el pack de imágenes
+        # Metemos todas las imágenes + el texto en el mismo mensaje
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 1000,
             "messages": [
                 {
                     "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {"type": "base64", "media_type": "image/png", "data": pure_b64}
-                        },
-                        {"type": "text", "text": prompt_perito}
-                    ]
+                    "content": bloques_imagenes_claude + [{"type": "text", "text": prompt_perito}]
                 }
             ]
         })
@@ -110,27 +121,29 @@ def validar_documento_vision(dni_esperado: str, state: Annotated[dict, InjectedS
             body=body
         )
 
-        # --- ACÁ ESTÁ EL FIX ---
-        # Leemos el body una sola vez y lo guardamos
+        # 4. Procesar respuesta
         response_body = response['body'].read().decode('utf-8')
         result = json.loads(response_body)
         raw_text = result['content'][0]['text']
 
-        # Limpiamos por si Claude manda texto fuera del JSON (Markdown backticks, etc)
-        if "{" in raw_text:
-            start = raw_text.find("{")
-            end = raw_text.rfind("}") + 1
-            analisis = json.loads(raw_text[start:end])
-        else:
-            return f"❌ Error: La IA no devolvió JSON. Respuesta: {raw_text}"
+        # Limpieza de JSON
+        start = raw_text.find("{")
+        end = raw_text.rfind("}") + 1
+        analisis = json.loads(raw_text[start:end])
 
-        if analisis.get('match') and analisis.get('es_documento_valido') and analisis.get('confianza', 0) > 0.7:
-            return f"✅ VALIDACIÓN EXITOSA: DNI {analisis['dni_detectado']} confirmado."
-        
-        return f"❌ VALIDACIÓN FALLIDA: {analisis.get('motivo_rechazo', 'No coincide el DNI.')}"
+        # 5. Veredicto Final
+        if analisis.get('todo_validado'):
+            return f"✅ LEGAJO COMPLETO Y VALIDADO: DNI {analisis['dni_detectado']} y recibo confirmados."
+        else:
+            errores = []
+            if not analisis.get('frente_ok'): errores.append("Frente DNI")
+            if not analisis.get('dorso_ok'): errores.append("Dorso DNI")
+            if not analisis.get('recibo_ok'): errores.append("Recibo de Sueldo")
+            
+            return f"❌ LEGAJO INCOMPLETO/ERRÓNEO: {analisis.get('motivo_rechazo')}. Detectado problema en: {', '.join(errores)}."
 
     except Exception as e:
-        return f"❌ Error en peritaje: {str(e)}"
+        return f"❌ Error en peritaje de legajo: {str(e)}"
 
 @tool(args_schema=CreditCheckInput)
 def simulate_credit_check(dni: str, email: str, ingreso_mensual: float, monto_credito: float, 
@@ -220,45 +233,54 @@ def consultar_estado_cliente(dni: str) -> str:
 @tool(args_schema=DocumentacionInput)
 def persistir_documentacion_validada(dni: str, state: Annotated[dict, InjectedState]) -> str:
     """
-    Busca las fotos en el historial de mensajes, las sube a S3 y 
-    actualiza el estado a REVISION.
+    Sube las fotos (Frente, Dorso, Recibo) a sus respectivas subcarpetas en S3
+    y actualiza el estado del trámite en DynamoDB.
     """
     BUCKET_NAME = "credit-agent-documentacion"
+    # Definimos el orden esperado de las carpetas
+    subcarpetas = ["frente", "dorso", "recibo"]
     imagenes_encontradas = []
 
     try:
-        # 1. Buscamos en los mensajes del estado (esto SIEMPRE está ahí)
+        # 1. Extraer las imágenes del historial (buscamos el último pack enviado)
         mensajes = state.get("messages", [])
-        
-        # 2. Recorremos los mensajes del último al primero buscando fotos
         for m in reversed(mensajes):
             if isinstance(m, HumanMessage) and isinstance(m.content, list):
                 for parte in m.content:
-                    # Buscamos el bloque que sea de tipo 'image'
                     if isinstance(parte, dict) and parte.get("type") == "image":
                         b64_data = parte.get("source", {}).get("data")
                         if b64_data:
                             imagenes_encontradas.append(b64_data)
-                
-                # Si ya encontramos fotos en el mensaje más reciente, no seguimos buscando
                 if imagenes_encontradas:
                     break
 
         if not imagenes_encontradas:
-            return "❌ Error: El agente ve las fotos pero la Tool no pudo extraer los bytes del historial."
+            return "❌ Error: No se encontraron las imágenes para persistir."
 
-        # 3. Subida a S3 (el proceso que ya conocés)
+        # 2. Subida organizada a S3
         links_s3 = []
+        timestamp = datetime.now().strftime('%H%M%S')
+        
         for idx, b64_str in enumerate(imagenes_encontradas):
-            # Limpiamos por las dudas si el b64 trae basura
+            # Limpieza de base64
             pure_b64 = b64_str.split(",")[1] if "," in b64_str else b64_str
             image_bytes = base64.b64decode(pure_b64)
             
-            file_key = f"{dni}/dni_{idx}_{datetime.now().strftime('%H%M%S')}.png"
-            s3.put_object(Bucket=BUCKET_NAME, Key=file_key, Body=image_bytes, ContentType='image/png')
+            # Determinamos la subcarpeta. Si hay más de 3 fotos, el resto va a 'otros'
+            folder_name = subcarpetas[idx] if idx < len(subcarpetas) else f"extra_{idx}"
+            
+            # ARMAMOS LA RUTA: dni/subcarpeta/archivo.png
+            file_key = f"{dni}/{folder_name}/doc_{timestamp}.png"
+            
+            s3.put_object(
+                Bucket=BUCKET_NAME, 
+                Key=file_key, 
+                Body=image_bytes, 
+                ContentType='image/png'
+            )
             links_s3.append(f"s3://{BUCKET_NAME}/{file_key}")
 
-        # 4. Actualizamos DynamoDB
+        # 3. Actualizamos DynamoDB con los links organizados
         table.update_item(
             Key={'dni': dni},
             UpdateExpression="SET estado = :est, fotos_s3 = :f, ultima_actualizacion = :t",
@@ -269,7 +291,7 @@ def persistir_documentacion_validada(dni: str, state: Annotated[dict, InjectedSt
             }
         )
 
-        return f"✅ ÉXITO: Se extrajeron {len(links_s3)} fotos del chat y se subieron a S3 para el DNI {dni}."
+        return f"✅ ÉXITO: Se guardaron {len(links_s3)} fotos en las carpetas {', '.join(subcarpetas[:len(links_s3)])} para el DNI {dni}."
 
     except Exception as e:
         return f"❌ ERROR en persistir_documentacion: {str(e)}"

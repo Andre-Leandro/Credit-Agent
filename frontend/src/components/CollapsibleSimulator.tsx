@@ -44,13 +44,6 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
       addToast('Por favor completa todos los campos', 'error');
       return;
     }
-
-    const ltv = (loanAmount / propertyValue) * 100;
-
-    if (ltv > 80) {
-      addToast('LTV mayor a 80%. Crédito rechazado.', 'error');
-      return;
-    }
     
     // Formattear mensaje para el chat
     const mensaje = `Solicito evaluar mi crédito con los siguientes datos:
@@ -140,8 +133,6 @@ Por favor, procede con la evaluación de mi solicitud.`;
               </Label>
               <Input 
                 type="number"
-                min="1"
-                max="40"
                 step="1"
                 value={years === 0 ? '' : years}
                 onChange={(e) => setYears(e.target.value === '' ? 0 : Number(e.target.value))}
@@ -159,7 +150,6 @@ Por favor, procede con la evaluación de mi solicitud.`;
               </Label>
               <Input 
                 type="number"
-                min="0"
                 step="1000"
                 value={monthlyIncome === 0 ? '' : monthlyIncome}
                 onChange={(e) => setMonthlyIncome(e.target.value === '' ? 0 : Number(e.target.value))}
@@ -177,7 +167,6 @@ Por favor, procede con la evaluación de mi solicitud.`;
               </Label>
               <Input 
                 type="number"
-                min="0"
                 step="1000"
                 value={propertyValue === 0 ? '' : propertyValue}
                 onChange={(e) => setPropertyValue(e.target.value === '' ? 0 : Number(e.target.value))}
@@ -195,7 +184,6 @@ Por favor, procede con la evaluación de mi solicitud.`;
               </Label>
               <Input 
                 type="number"
-                min="0"
                 step="1000"
                 value={loanAmount === 0 ? '' : loanAmount}
                 onChange={(e) => setLoanAmount(e.target.value === '' ? 0 : Number(e.target.value))}
@@ -267,40 +255,40 @@ Por favor, procede con la evaluación de mi solicitud.`;
             
             {fotos.length > 0 ? (
               <div className="space-y-3">
-                <div className="flex flex-col">
-                  <button
-                    onClick={() => {
-                      setZoomImage(fotos[0]);
-                      setZoomScale(1);
-                    }}
-                    className="relative block w-full p-0 m-0 bg-gray-200 hover:opacity-90 transition-opacity cursor-zoom-in group rounded-t-lg overflow-hidden"
-                  >
-                    <img 
-                      src={fotos[0]} 
-                      alt="Documento" 
-                      className="w-full h-auto object-contain max-h-96 m-0 block" 
-                    />
-                    <div className="absolute top-2 right-2 bg-black/50 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ZoomIn className="w-5 h-5 text-white" />
-                    </div>
-                  </button>
+                {fotos.map((foto, index) => (
+                  <div key={index} className="flex flex-col">
+                    <button
+                      onClick={() => {
+                        setZoomImage(foto);
+                        setZoomScale(1);
+                      }}
+                      className="relative block w-full p-0 m-0 bg-gray-200 hover:opacity-90 transition-opacity cursor-zoom-in group rounded-t-lg overflow-hidden"
+                    >
+                      <img 
+                        src={foto} 
+                        alt={`Documento ${index + 1}`} 
+                        className="w-full h-auto object-contain max-h-96 m-0 block" 
+                      />
+                      <div className="absolute top-2 right-2 bg-black/50 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ZoomIn className="w-5 h-5 text-white" />
+                      </div>
+                    </button>
 
-                  <div className="px-3 py-2.5 m-0 bg-white border border-gray-200 rounded-b-lg border-t-0">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-[#10069f]" />
-                      <span className="text-sm text-gray-700 font-medium">Documento 1</span>
+                    <div className="px-3 py-2.5 m-0 bg-white border border-gray-200 rounded-b-lg border-t-0">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-[#10069f]" />
+                        <span className="text-sm text-gray-700 font-medium">Documento {index + 1}</span>
+                      </div>
                     </div>
                   </div>
+                ))}
+
+                {/* Resumen de documentos */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs text-blue-700">
+                    <span className="font-semibold">{fotos.length} documento{fotos.length !== 1 ? 's' : ''} cargado{fotos.length !== 1 ? 's' : ''}</span>
+                  </p>
                 </div>
-
-                {/* Info de documentos */}
-                {fotos.length > 1 && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs text-blue-700">
-                      <span className="font-semibold">{fotos.length} documento{fotos.length !== 1 ? 's' : ''} cargado{fotos.length !== 1 ? 's' : ''}</span>
-                    </p>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">

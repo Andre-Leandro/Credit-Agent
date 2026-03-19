@@ -61,19 +61,23 @@ export const useChatAgent = () => {
 
       // Si hay imágenes, convertir a base64
       if (request.files && request.files.length > 0) {
-        const imageFile = request.files[0]; // Tomar la primera imagen
-        const mimeType = imageFile.type;
-
-        if (mimeType.startsWith('image/')) {
-          const base64String = await fileToBase64(imageFile);
-          payload.image = base64String;
-          console.log('🖼️ Imagen convertida a base64, tipo:', mimeType);
+        const imageFiles = request.files.filter((file) => file.type.startsWith('image/'));
+        
+        if (imageFiles.length > 0) {
+          const base64Images = await Promise.all(
+            imageFiles.map(async (imageFile) => {
+              const base64String = await fileToBase64(imageFile);
+              return base64String;
+            })
+          );
+          payload.images = base64Images;
+          console.log('🖼️ Imágenes convertidas a base64, cantidad:', imageFiles.length);
         }
       }
 
       console.log('📤 Enviando a Lambda:', {
         prompt: payload.prompt,
-        hasImage: !!payload.image,
+        hasImages: !!(payload.images && payload.images.length > 0),
       });
 
       const response = await fetch(lambdaUrl, {
