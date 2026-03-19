@@ -58,6 +58,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ currentStatus = '' }) 
         body: JSON.stringify({
           action: 'update_status',
           dni: user.dni,
+          email: user.email,
           new_status: nextStatus,
         }),
       });

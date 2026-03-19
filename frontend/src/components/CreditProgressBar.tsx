@@ -89,7 +89,8 @@ export const CreditProgressBar: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           "action": "get_status",
-          "dni": dniGuardado
+          "dni": dniGuardado,
+          "email": user?.email
         })
       });
 

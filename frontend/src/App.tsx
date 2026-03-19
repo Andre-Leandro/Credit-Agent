@@ -25,9 +25,9 @@ function App() {
     return <Login />;
   }
 
-  const handleSimulatorSendMessage = (message: string) => {
+  const handleSimulatorSendMessage = (message: string, files?: File[]) => {
     if (chatPanelRef.current) {
-      chatPanelRef.current.sendMessageDirect(message);
+      chatPanelRef.current.sendMessageDirect(message, files);
     }
   };
 

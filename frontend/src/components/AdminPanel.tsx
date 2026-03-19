@@ -55,6 +55,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentStatus, onStatusU
         body: JSON.stringify({
           action: 'update_status',
           dni: user.dni,
+          email: user.email,
           new_status: newStatus,
         }),
       });

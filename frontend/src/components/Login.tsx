@@ -49,7 +49,8 @@ export const Login = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'get_status',
-          dni: dni
+          dni: dni,
+          email: email
         })
       });
 
