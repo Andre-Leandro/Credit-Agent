@@ -6,6 +6,8 @@ import { Label } from './ui/label';
 import { Select } from './ui/select';
 import { useToast, ToastContainer } from './Toast';
 import DocumentationUploader from './DocumentationUploader';
+import { PropertyDocumentsUploader } from './PropertyDocumentsUploader';
+import { PropertySearchForm } from './PropertySearchForm';
 import { useRequest } from '../contexts/RequestContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -32,6 +34,8 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   // Estados para documentos
   const REVIEW_STATES = ['REVISION', 'BUSQUEDA_PROPIEDAD', 'TITULOS_CARGADOS', 'TASACION', 'FINALIZADO'];
   const isInReviewState = user?.estado && REVIEW_STATES.includes(user.estado.toUpperCase());
+  const isBusquedaPropiedadState = user?.estado && user.estado.toUpperCase() === 'BUSQUEDA_PROPIEDAD';
+  const isTitulosCargadosState = user?.estado && user.estado.toUpperCase() === 'TITULOS_CARGADOS';
   const fotos = user?.fotos_visibles ? (Array.isArray(user.fotos_visibles) ? user.fotos_visibles : [user.fotos_visibles]) : [];
 
   // Debug: mostrar qué panel se renderiza
@@ -80,7 +84,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const handleSendDocumentation = (files: any[]) => {
     const mensaje = `Hola. Acá te paso los datos para continuar con mi solicitud de crédito:
 
-📄 Documentos Adjuntos:
+Documentos Adjuntos:
 - DNI (Frente)
 - DNI (Dorso)
 - Último Recibo de Sueldo
@@ -92,6 +96,22 @@ Por favor, procede con la evaluación de mi solicitud.`;
     
     onSendMessage(mensaje, fileObjects);
     addToast('Documentos enviados al chat', 'success');
+  };
+
+  const handleSendPropertyDocumentation = (files: any[]) => {
+    const mensaje = `Hola. Acá te paso los documentos de la propiedad para continuar con mi solicitud de crédito:
+
+Documentos Adjuntos:
+- Título de Propiedad
+- Plano de la Propiedad
+
+Por favor, procede con la evaluación.`;
+
+    // Convertir UploadedDoc[] a File[]
+    const fileObjects = files.map((doc) => doc.file);
+    
+    onSendMessage(mensaje, fileObjects);
+    addToast('Documentos de propiedad enviados al chat', 'success');
   };
 
   return (
@@ -248,6 +268,16 @@ Por favor, procede con la evaluación de mi solicitud.`;
           </Button>
         </div>
         </>
+        ) : isBusquedaPropiedadState ? (
+          <PropertySearchForm
+            onSendMessage={onSendMessage}
+            isLoading={isLoading}
+          />
+        ) : isTitulosCargadosState ? (
+          <PropertyDocumentsUploader
+            onSendDocumentation={handleSendPropertyDocumentation}
+            isLoading={isLoading}
+          />
         ) : isInReviewState ? (
           // Vista de Documentos Cargados para estados de revisión
           <div className="flex-1 overflow-y-auto p-6">
