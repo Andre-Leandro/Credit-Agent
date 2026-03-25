@@ -328,19 +328,19 @@ def consultar_estado_cliente(dni: str) -> str:
 def persistir_documentacion_validada(dni: str, tipo_validacion: str, state: Annotated[dict, InjectedState]) -> str:
     """
     Sube fotos a S3 y actualiza DynamoDB. 
-    Diferencia entre fotos de identidad (REVISION) y fotos de propiedad (TASACION).
+    Notifica al usuario por mail sobre el cambio de estado (REVISION o TASACION).
     """
     BUCKET_NAME = "credit-agent-documentacion"
     s3 = boto3.client('s3')
     
-    # Definimos etiquetas de carpetas según el tipo para que S3 quede prolijo
+    # Definimos etiquetas y estados según el tipo
     if tipo_validacion == "identidad":
         subcarpetas = ["frente", "dorso", "recibo"]
         campo_dynamo = "fotos_s3"
         nuevo_estado = "REVISION"
     else:
         subcarpetas = ["escritura", "planos"]
-        campo_dynamo = "fotos_documentacion_s3" # El campo que pediste
+        campo_dynamo = "fotos_documentacion_s3"
         nuevo_estado = "TASACION"
 
     imagenes_encontradas = []
@@ -361,7 +361,7 @@ def persistir_documentacion_validada(dni: str, tipo_validacion: str, state: Anno
         if not imagenes_encontradas:
             return f"❌ Error: No encontré las fotos de {tipo_validacion} para guardar."
 
-        # 2. Subida organizada a S3 (Mantenemos tu lógica de rutas)
+        # 2. Subida organizada a S3
         links_s3 = []
         timestamp = datetime.now().strftime('%H%M%S')
         
@@ -369,7 +369,6 @@ def persistir_documentacion_validada(dni: str, tipo_validacion: str, state: Anno
             pure_b64 = b64_str.split(",")[1] if "," in b64_str else b64_str
             image_bytes = base64.b64decode(pure_b64)
             
-            # Carpeta dinámica: dni/frente/ o dni/escritura/
             folder_name = subcarpetas[idx] if idx < len(subcarpetas) else f"extra_{idx}"
             file_key = f"{dni}/{folder_name}/doc_{timestamp}.png"
             
@@ -381,7 +380,7 @@ def persistir_documentacion_validada(dni: str, tipo_validacion: str, state: Anno
             )
             links_s3.append(f"s3://{BUCKET_NAME}/{file_key}")
 
-        # 3. Actualizamos DynamoDB usando el campo y estado dinámicos
+        # 3. Actualizamos DynamoDB
         table.update_item(
             Key={'dni': dni},
             UpdateExpression=f"SET estado = :est, {campo_dynamo} = :f, ultima_actualizacion = :t",
@@ -392,9 +391,24 @@ def persistir_documentacion_validada(dni: str, tipo_validacion: str, state: Anno
             }
         )
 
+        # --- 📧 4. NOTIFICACIÓN POR EMAIL ---
+        try:
+            # Buscamos el mail del usuario para avisarle
+            res_user = table.get_item(Key={'dni': dni}, ConsistentRead=True)
+            if 'Item' in res_user:
+                email_usuario = res_user['Item'].get('email')
+                if email_usuario:
+                    enviar_mail_gmail(email_usuario, dni, nuevo_estado)
+                    info_mail = f"Email enviado a {email_usuario}."
+                else:
+                    info_mail = "⚠️ No se encontró email para notificar."
+            else:
+                info_mail = "⚠️ No se pudo recuperar el usuario para enviar el mail."
+        except Exception as e_mail:
+            info_mail = f"⚠️ Falló el envío del mail: {str(e_mail)}"
+
         return (f"✅ ÉXITO ({tipo_validacion}): Se guardaron {len(links_s3)} fotos. "
-                f"El trámite del DNI {dni} pasó automáticamente al estado '{nuevo_estado}'. "
-                f"Los links se guardaron en el campo '{campo_dynamo}'.")
+                f"El trámite pasó a '{nuevo_estado}'. {info_mail}")
 
     except Exception as e:
         return f"❌ ERROR en persistir_documentacion ({tipo_validacion}): {str(e)}"

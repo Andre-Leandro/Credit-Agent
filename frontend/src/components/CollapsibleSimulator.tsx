@@ -91,7 +91,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
     setIsDragging(false);
   };
 
-  const handleContainerMouseUp = (e: React.MouseEvent) => {
+  const handleContainerMouseUp = () => {
     setIsDragging(false);
   };
 
