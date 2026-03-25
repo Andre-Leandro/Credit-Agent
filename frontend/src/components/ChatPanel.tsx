@@ -54,6 +54,84 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
     }
   }, [isInitialized, loadChatHistory]);
 
+  // Detecta cambios de estado y agrega el mensaje de felicitaciones sin requerir refresh
+  useEffect(() => {
+    if (!isInitialized || !user?.dni) return;
+
+    let isCancelled = false;
+    const flagKey = `credit_approval_message_shown_${user.dni}`;
+
+    const checkStatusAndNotify = async () => {
+      try {
+        const lambdaUrl = import.meta.env.VITE_LAMBDA_URL;
+        if (!lambdaUrl) return;
+
+        // Mismo origen de datos que la barra lateral
+        const userString = localStorage.getItem('user');
+        const storedUser = userString ? JSON.parse(userString) : null;
+        const dniGuardado = storedUser?.dni;
+        if (!dniGuardado) return;
+
+        const response = await fetch(lambdaUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'get_status',
+            dni: dniGuardado,
+            email: storedUser?.email,
+          }),
+        });
+
+        const data = await response.json();
+        if (isCancelled || data.status !== 'success' || !data.data) return;
+
+        const estado = (data.data.estado || '').toUpperCase();
+
+        if (estado === 'FINALIZADO') {
+          const alreadyShown = localStorage.getItem(flagKey) === 'true';
+          if (alreadyShown) return;
+
+          const monto = data.data.monto_credito
+            ? `$${Number(data.data.monto_credito).toLocaleString('es-AR')}`
+            : 'N/A';
+          const cuotas = data.data.plazo_anos ? `${data.data.plazo_anos * 12} cuotas mensuales` : 'N/A';
+          const rci = data.data.rci ? `${Number(data.data.rci).toFixed(2)}%` : 'N/A';
+
+          const approvalMessage: ChatMessage = {
+            id: String(Date.now()),
+            type: 'agent',
+            message: `Hola! ¡FELICITACIONES! Tu crédito fue aprobado.
+
+Detalles de tu aprobación:
+Monto aprobado: ${monto}
+Plazo: ${cuotas}
+RCI: ${rci}
+
+Nos pondremos en contacto a la brevedad para coordinar la firma de la documentación necesaria. ¡Gracias por confiar en nosotros!`,
+            timestamp: new Date(),
+          };
+
+          setMessages((prev) => [...prev, approvalMessage]);
+
+          localStorage.setItem(flagKey, 'true');
+          return;
+        }
+
+        localStorage.removeItem(flagKey);
+      } catch (err) {
+        console.error('Error checking status in chat:', err);
+      }
+    };
+
+    checkStatusAndNotify();
+    const intervalId = setInterval(checkStatusAndNotify, 10000);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [isInitialized, user?.dni, user?.email]);
+
   // Guardar historial cuando cambien los mensajes (pero no en la inicialización)
   useEffect(() => {
     if (isInitialized && historyEnabled) {

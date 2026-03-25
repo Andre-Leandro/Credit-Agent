@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Circle, FileText, CheckCircle, Target, Award, Search, FileCheck, Home} from 'lucide-react';
+import { useCreditStatus } from '../contexts/CreditStatusContext';
 
 interface ProgressCheckpoint {
   id: string;
@@ -18,6 +19,7 @@ interface ProgressData {
 }
 
 export const CreditProgressBar: React.FC = () => {
+  const { setCreditData } = useCreditStatus();
   const [checkpoints, setCheckpoints] = useState<ProgressCheckpoint[]>([
     {
       id: 'preapproval',
@@ -101,6 +103,7 @@ export const CreditProgressBar: React.FC = () => {
       if (data.status === "success" && data.data) {
         console.log('✅ Datos recibidos correctamente:', data.data);
         setProgressData(data.data);
+        setCreditData(data.data);
         actualizarUI(data.data);
       } else {
         console.warn('⚠️ Respuesta inesperada de Lambda:', data);
