@@ -180,18 +180,25 @@ export const CreditProgressBar: React.FC = () => {
   }, []);
 
   return (
-    <div className="w-full h-full bg-gradient-to-b from-[#f5f3ff] to-white p-6 overflow-y-auto">
+    <div className="w-full h-full bg-white p-6 overflow-y-auto">
       <div className="flex flex-col gap-8">
         <div>
-          <h3 className="text-lg font-bold text-gray-900 mb-2">Progreso del Crédito</h3>
-          <p className="text-sm text-gray-600">Seguimiento de tu solicitud</p>
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Progreso del Crédito</h3>
           
           {progressData && (
-            <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200 text-xs text-blue-800 space-y-1">
-              <p><strong>Monto:</strong> ${progressData.monto_credito?.toLocaleString() || 'N/A'}</p>
-              <p><strong>Propiedad:</strong> ${progressData.valor_propiedad?.toLocaleString() || 'N/A'}</p>
-              <p><strong>Plazo:</strong> {progressData.plazo_anos} años</p>
-              <p><strong>Estado:</strong> <span className="font-semibold">{progressData.estado}</span></p>
+            <div className="mt-4 p-4 bg-gradient-to-r from-[#10069f]/5 to-[#10069f]/10 rounded-xl border border-[#10069f]/20 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-700">Monto</span>
+                <span className="text-sm font-bold text-[#10069f]">${progressData.monto_credito?.toLocaleString() || 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-700">Propiedad</span>
+                <span className="text-sm font-bold text-[#10069f]">${progressData.valor_propiedad?.toLocaleString() || 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-700">Plazo</span>
+                <span className="text-sm font-bold text-[#10069f]">{progressData.plazo_anos} años</span>
+              </div>
             </div>
           )}
         </div>

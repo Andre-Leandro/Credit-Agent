@@ -136,7 +136,7 @@ export const DocumentationUploader: React.FC<DocumentationUploaderProps> = ({
     <div className="w-full h-full flex flex-col bg-white">
       <div className="flex-1 overflow-y-auto p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-2 mt-6">Carga de Documentación</h2>
-        <p className="text-sm text-gray-600 mb-6">Sube los documentos requeridos para continuar</p>
+        <p className="text-sm text-gray-600 mb-6">Sube los documentos requeridos para continuar.</p>
 
         <div className="space-y-4">
           {documentTypes.map((docType) => {

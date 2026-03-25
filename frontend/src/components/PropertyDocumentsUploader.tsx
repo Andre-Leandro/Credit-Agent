@@ -126,8 +126,8 @@ export const PropertyDocumentsUploader: React.FC<PropertyDocumentsUploaderProps>
   return (
     <div className="w-full h-full flex flex-col bg-white">
       <div className="flex-1 overflow-y-auto p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-2 mt-6">Carga de Documentación</h2>
-        <p className="text-sm text-gray-600 mb-6">Sube los documentos requeridos de la propiedad para continuar</p>
+        <h2 className="text-xl font-bold text-gray-900 mb-2 mt-6">Carga de Título y Plano</h2>
+        <p className="text-sm text-gray-600 mb-6">Sube los documentos requeridos de la propiedad para continuar.</p>
 
         <div className="space-y-4">
           {documentTypes.map((docType) => {
@@ -139,35 +139,36 @@ export const PropertyDocumentsUploader: React.FC<PropertyDocumentsUploaderProps>
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={(e) => handleDrop(e, docType.id as DocType)}
-                className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
+                className={`relative border-2 border-dashed rounded-lg p-6 transition-all cursor-pointer ${
                   dragActive
                     ? 'border-[#10069f] bg-blue-50'
-                    : 'border-gray-300 bg-gray-50 hover:border-[#10069f] hover:bg-blue-50'
-                } ${uploaded ? 'border-green-400 bg-green-50' : ''}`}
+                    : uploaded
+                    ? 'border-green-300 bg-green-50'
+                    : 'border-gray-300 bg-gray-50 hover:border-[#10069f]'
+                }`}
               >
                 {uploaded ? (
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 flex-1">
+                    <div className="flex items-center gap-3">
                       <CheckCircle className="w-5 h-5 text-green-600" />
-                      <div className="text-left">
-                        <p className="text-sm font-medium text-gray-900">{docType.label}</p>
-                        <p className="text-xs text-gray-500">{uploaded.name}</p>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{docType.label}</p>
+                        <p className="text-xs text-gray-600">{uploaded.name}</p>
                       </div>
                     </div>
                     <button
                       onClick={() => removeDocument(uploaded.id)}
-                      className="p-1 hover:bg-red-100 rounded transition-colors"
-                      disabled={isLoading}
+                      className="p-1 hover:bg-red-100 rounded-lg transition-colors"
                     >
-                      <X className="w-5 h-5 text-red-600" />
+                      <X className="w-4 h-4 text-red-600" />
                     </button>
                   </div>
                 ) : (
-                  <label className="cursor-pointer flex flex-col items-center gap-2">
+                  <label className="flex flex-col items-center gap-2">
                     <Upload className="w-6 h-6 text-gray-400" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{docType.label}</p>
-                      <p className="text-xs text-gray-500">Arrastra o haz clic para seleccionar</p>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-gray-700">{docType.label}</p>
+                      <p className="text-xs text-gray-500">Arrastra aquí o haz click</p>
                     </div>
                     <input
                       type="file"
@@ -189,15 +190,15 @@ export const PropertyDocumentsUploader: React.FC<PropertyDocumentsUploaderProps>
         </div>
       </div>
 
-      {/* Botón Enviar */}
-      <div className="border-t border-gray-200 p-4 bg-gray-50 space-y-2">
+      {/* Botones */}
+      <div className="border-t border-gray-200 p-4 bg-gray-50 space-y-3">
         <Button
           onClick={handleSend}
           disabled={!allDocumentsUploaded || isLoading}
           className="w-full h-10 text-sm font-semibold bg-[#10069f] hover:bg-[#0a0470] disabled:opacity-50"
           variant="default"
         >
-          {allDocumentsUploaded ? 'Enviar Documentos' : `Falta cargar ${3 - uploadedDocs.length} documento${3 - uploadedDocs.length !== 1 ? 's' : ''}`}
+          Enviar al Agente
         </Button>
       </div>
     </div>

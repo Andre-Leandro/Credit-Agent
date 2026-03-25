@@ -20,6 +20,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const [isOpen, setIsOpen] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
+  const [documentTab, setDocumentTab] = useState<'personal' | 'propiedad'>('personal');
   const { requestState } = useRequest();
   const { user } = useAuth();
   const [destination, setDestination] = useState('Construcción de segunda vivienda');
@@ -36,7 +37,16 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const isInReviewState = user?.estado && REVIEW_STATES.includes(user.estado.toUpperCase());
   const isBusquedaPropiedadState = user?.estado && user.estado.toUpperCase() === 'BUSQUEDA_PROPIEDAD';
   const isTitulosCargadosState = user?.estado && user.estado.toUpperCase() === 'TITULOS_CARGADOS';
-  const fotos = user?.fotos_visibles ? (Array.isArray(user.fotos_visibles) ? user.fotos_visibles : [user.fotos_visibles]) : [];
+  const isTasacionState = user?.estado && user.estado.toUpperCase() === 'TASACION';
+  
+  // Fotos personales y de propiedad
+  const fotosPersonales = user?.fotos_visibles ? (Array.isArray(user.fotos_visibles) ? user.fotos_visibles : [user.fotos_visibles]) : [];
+  const fotosPropiedad = (user as any)?.fotos_visibles_propiedad ? (Array.isArray((user as any).fotos_visibles_propiedad) ? (user as any).fotos_visibles_propiedad : [(user as any).fotos_visibles_propiedad]) : [];
+  
+  // Usar fotos según la tab seleccionada en TASACION
+  const fotosActuales = isTasacionState 
+    ? (documentTab === 'personal' ? fotosPersonales : fotosPropiedad)
+    : fotosPersonales;
 
   // Debug: mostrar qué panel se renderiza
   useEffect(() => {
@@ -124,7 +134,7 @@ Por favor, procede con la evaluación.`;
       >
         {requestState === 'simulator' ? (
           <>
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarGutter: 'stable' }}>
               <h2 className="text-xl font-bold text-gray-900 mb-6 mt-6">Simulador de Crédito</h2>
           
           <div className="space-y-5">
@@ -280,12 +290,46 @@ Por favor, procede con la evaluación.`;
           />
         ) : isInReviewState ? (
           // Vista de Documentos Cargados para estados de revisión
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarGutter: 'stable' }}>
             <h2 className="text-xl font-bold text-gray-900 mb-6 mt-6">Documentos Cargados</h2>
             
-            {fotos.length > 0 ? (
+            {/* Tabs - Solo mostrar en TASACION */}
+            {isTasacionState && (
+              <div className="flex justify-center mb-6">
+                <div className="inline-flex gap-0 border-b border-gray-200">
+                  <button
+                    onClick={() => setDocumentTab('personal')}
+                    className={`px-4 py-2 font-semibold text-sm relative ${
+                      documentTab === 'personal'
+                        ? 'text-[#10069f]'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                    style={{
+                      borderBottom: documentTab === 'personal' ? '2px solid #10069f' : 'none'
+                    }}
+                  >
+                    Personal
+                  </button>
+                  <button
+                    onClick={() => setDocumentTab('propiedad')}
+                    className={`px-4 py-2 font-semibold text-sm relative ${
+                      documentTab === 'propiedad'
+                        ? 'text-[#10069f]'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                    style={{
+                      borderBottom: documentTab === 'propiedad' ? '2px solid #10069f' : 'none'
+                    }}
+                  >
+                    Propiedad
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {fotosActuales.length > 0 ? (
               <div className="space-y-3">
-                {fotos.map((foto, index) => (
+                {fotosActuales.map((foto: string, index: number) => (
                   <div key={index} className="flex flex-col">
                     <button
                       onClick={() => {
@@ -312,13 +356,6 @@ Por favor, procede con la evaluación.`;
                     </div>
                   </div>
                 ))}
-
-                {/* Resumen de documentos */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-xs text-blue-700">
-                    <span className="font-semibold">{fotos.length} documento{fotos.length !== 1 ? 's' : ''} cargado{fotos.length !== 1 ? 's' : ''}</span>
-                  </p>
-                </div>
               </div>
             ) : (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
