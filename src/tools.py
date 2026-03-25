@@ -8,6 +8,10 @@ import base64
 from langgraph.prebuilt import InjectedState
 from langchain_core.messages import HumanMessage
 import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 
 # Inicializamos DynamoDB
 REGION = 'us-east-1'
@@ -16,10 +20,51 @@ s3 = boto3.client('s3', region_name=REGION)
 table = dynamodb.Table('SolicitudesCredito')
 BUCKET_S3 = "credit-agent-documentacion"
 
+GMAIL_USER = "andre.sanlorenzo@strata-analytics.us" 
+GMAIL_PASS = "hjquatrsdnkxidbk" # Tu App Password (sin espacios)
+
+def enviar_mail_gmail(destinatario, dni, nuevo_estado):
+    """Manda el mail usando el servidor de Google directamente"""
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Actualización de Trámite Credit Bank - DNI {dni}"
+        msg["From"] = f"Asistente Hipotecario <{GMAIL_USER}>"
+        msg["To"] = destinatario
+
+        # Cuerpo del mail en HTML
+        html_content = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; color: #333;">
+            <div style="max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+              <h2 style="color: #2c3e50;">¡Hola! Tenemos novedades.</h2>
+              <p>Te informamos que el estado de tu solicitud de crédito (DNI: <strong>{dni}</strong>) ha sido actualizado.</p>
+              <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #27ae60; margin: 20px 0;">
+                <span style="font-size: 1.1em;">Nuevo Estado: <strong>{nuevo_estado}</strong></span>
+              </div>
+              <p>Podés consultar el avance detallado ingresando a nuestra plataforma.</p>
+              <hr style="border: 0; border-top: 1px solid #eee;">
+              <p style="font-size: 0.8em; color: #777;">Este es un mensaje automático del Asistente Virtual.</p>
+            </div>
+          </body>
+        </html>
+        """
+        msg.attach(MIMEText(html_content, "html"))
+
+        # Conexión Segura con Gmail
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(GMAIL_USER, GMAIL_PASS)
+            server.send_message(msg)
+        
+        print(f"✅ Mail enviado exitosamente a {destinatario}")
+        return True
+    except Exception as e:
+        print(f"❌ Error enviando mail: {str(e)}")
+        return False
+
 # --- ESQUEMAS DE ENTRADA (Pydantic) ---
 class DocumentacionInput(BaseModel):
     dni: str = Field(description="DNI del cliente")
-    # Ya no le pedimos la lista de imágenes acá para que no mande fruta
+    tipo_validacion: str = Field(description="Modo: 'identidad' (DNI/Recibo) o 'propiedad' (Títulos/Planos)")
 
 class CreditCheckInput(BaseModel):
     """Input detallado para el Simulador de Crédito."""
@@ -36,132 +81,138 @@ class SolicitudInput(BaseModel):
     """Input para gestionar o consultar la base de datos."""
     dni: str = Field(description="DNI del cliente")
     estado: Optional[str] = Field(None, description="Nuevo estado: 'PRE_APROBACION', 'DOCUMENTACION', etc.")
-    datos_extra: Optional[dict] = Field(None, description="Diccionario con datos del simulador u otros")
+    direccion: Optional[str] = Field(None, description="Dirección o zona de la propiedad")
+    tipo_propiedad: Optional[str] = Field(None, description="Casa, Departamento, etc.")
+    ambientes: Optional[int] = Field(None, description="Cantidad de ambientes")
 
 # 1. Agregamos el esquema de entrada
 class VisionInput(BaseModel):
-    dni_esperado: str = Field(description="El número de DNI que el usuario dijo tener y queremos verificar.")
+    dni_esperado: str = Field(description="DNI del cliente para validar titularidad.")
+    tipo_validacion: str = Field(description="Define qué analizar: 'identidad' (DNI/Recibo) o 'propiedad' (Escritura/Planos)")
 
 # --- HERRAMIENTAS (Tools) ---
 
 # 2. La Tool Maestra
 @tool(args_schema=VisionInput)
-def validar_documento_vision(dni_esperado: str, state: Annotated[dict, InjectedState]) -> str:
+def validar_documento_vision(dni_esperado: str, tipo_validacion: str, state: Annotated[dict, InjectedState]) -> str:
     """
-    Analiza un conjunto de imágenes para validar: Frente DNI, Dorso DNI y Recibo de Sueldo.
+    Realiza un peritaje técnico de imágenes. 
+    En modo 'identidad' busca DNI y Recibo. En modo 'propiedad' busca Escritura y Planos.
     """
     bedrock_runtime = boto3.client('bedrock-runtime', region_name='us-east-1')
     
     try:
-        # 1. Extraer TODAS las imágenes del último mensaje del usuario
+        # 1. Extracción de imágenes (Mantenemos tu lógica robusta)
         mensajes = state.get("messages", [])
         bloques_imagenes_claude = []
-        
         for m in reversed(mensajes):
             if isinstance(m, HumanMessage) and isinstance(m.content, list):
                 for parte in m.content:
                     if isinstance(parte, dict) and parte.get("type") == "image":
                         b64_data = parte.get("source", {}).get("data")
-                        # Limpiamos el base64 si es necesario
                         pure_b64 = b64_data.split(",")[1] if "," in b64_data else b64_data
-                        
                         bloques_imagenes_claude.append({
                             "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/png",
-                                "data": pure_b64
-                            }
+                            "source": {"type": "base64", "media_type": "image/png", "data": pure_b64}
                         })
-                
-                # Si encontramos imágenes en este mensaje, no seguimos buscando en anteriores
-                if bloques_imagenes_claude:
-                    break
+                if bloques_imagenes_claude: break
 
         if not bloques_imagenes_claude:
-            return "❌ No se encontraron imágenes en el chat. Por favor, subí las fotos de tu DNI (frente y dorso) y el recibo de sueldo."
+            return f"❌ Error: No encontré imágenes en el último mensaje para validar {tipo_validacion}."
 
-        # 2. Prompt "Perito Combo"
-        prompt_perito = f"""
-        Analizá las imágenes adjuntas. Deben conformar el legajo del DNI: {dni_esperado}.
-        
-        TAREAS:
-        1. FRENTE DNI: ¿Está presente? ¿Coincide el número con {dni_esperado}?
-        2. DORSO DNI: ¿Está presente? ¿Es un documento válido? ¿Coincide el número con {dni_esperado}?
-        3. RECIBO DE SUELDO: ¿Está presente? ¿Es un recibo legible y de la persona de {dni_esperado}?
+        # 2. SELECCIÓN DE PROMPT DETALLADO SEGÚN EL CASO
+        if tipo_validacion == "identidad":
+            prompt_perito = f"""
+            Actúa como un experto en validación de identidad bancaria. 
+            OBJETIVO: Validar el legajo de identidad del DNI {dni_esperado}.
+            
+            REQUISITOS TÉCNICOS:
+            1. FRENTE DNI: Debe ser legible, mostrar el número {dni_esperado} y la foto del rostro.
+            2. DORSO DNI: Debe mostrar el código de barras y ser del mismo ejemplar que el frente.
+            3. RECIBO DE SUELDO: Debe ser un documento oficial (PDF o foto de papel), legible, y el nombre/DNI debe coincidir con {dni_esperado}.
 
-        INSTRUCCIÓN: Si falta alguna de estas 3 cosas, indicá cuál falta en 'motivo_rechazo'.
-        
-        RESPONDÉ ÚNICAMENTE EN JSON:
-        {{
-            "frente_ok": bool,
-            "dorso_ok": bool,
-            "recibo_ok": bool,
-            "dni_detectado": "numero o N/A",
-            "motivo_rechazo": "Explicación detallada de qué falta o qué está mal",
-            "todo_validado": bool (true solo si los 3 anteriores son true)
-        }}
-        """
+            INSTRUCCIONES DE RESPUESTA:
+            Si algo falla, sé específico (ej: "DNI borroso", "Recibo de otra persona").
+            
+            RESPONDÉ ÚNICAMENTE EN JSON:
+            {{
+                "frente_ok": bool,
+                "dorso_ok": bool,
+                "recibo_ok": bool,
+                "dni_detectado": "string",
+                "motivo_rechazo": "string",
+                "todo_validado": bool
+            }}
+            """
+        else: # MODO PROPIEDAD
+            prompt_perito = f"""
+            Actúa como un perito técnico inmobiliario.
+            OBJETIVO: Validar la documentación técnica de la propiedad para el cliente {dni_esperado}.
+            
+            REQUISITOS TÉCNICOS:
+            1. TÍTULO/ESCRITURA: Debe ser un documento notarial, mostrar sellos, firmas de escribano o número de matrícula de folio real. 
+            2. PLANOS: Debe mostrar el dibujo técnico de la propiedad, sellos municipales o de catastro. Debe ser legible.
+            3. COHERENCIA: Verifica que los documentos se refieran a una propiedad inmueble.
 
-        # 3. Llamada a Bedrock con el pack de imágenes
-        # Metemos todas las imágenes + el texto en el mismo mensaje
+            INSTRUCCIONES DE RESPUESTA:
+            Si falta la escritura o los planos, o no son legibles, indícalo en 'motivo_rechazo'.
+
+            RESPONDÉ ÚNICAMENTE EN JSON:
+            {{
+                "titulo_ok": bool,
+                "planos_ok": bool,
+                "todo_validado": bool,
+                "motivo_rechazo": "string"
+            }}
+            """
+
+        # 3. Invocación a Claude 3.5 Sonnet
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 1000,
             "messages": [
-                {
-                    "role": "user",
-                    "content": bloques_imagenes_claude + [{"type": "text", "text": prompt_perito}]
-                }
+                {"role": "user", "content": bloques_imagenes_claude + [{"type": "text", "text": prompt_perito}]}
             ]
         })
 
-        response = bedrock_runtime.invoke_model(
-            modelId="anthropic.claude-3-5-sonnet-20240620-v1:0",
-            body=body
-        )
-
-        # 4. Procesar respuesta
-        response_body = response['body'].read().decode('utf-8')
-        result = json.loads(response_body)
-        raw_text = result['content'][0]['text']
-
-        # Limpieza de JSON
-        start = raw_text.find("{")
-        end = raw_text.rfind("}") + 1
+        response = bedrock_runtime.invoke_model(modelId="anthropic.claude-3-5-sonnet-20240620-v1:0", body=body)
+        raw_text = json.loads(response['body'].read().decode('utf-8'))['content'][0]['text']
+        
+        # Parseo de JSON
+        start, end = raw_text.find("{"), raw_text.rfind("}") + 1
         analisis = json.loads(raw_text[start:end])
 
-        # 5. Veredicto Final
+        # 4. VERDICTO FINAL (Diferenciando el mensaje para el Agente)
         if analisis.get('todo_validado'):
-            return f"✅ LEGAJO COMPLETO Y VALIDADO: DNI {analisis['dni_detectado']} y recibo confirmados."
+            if tipo_validacion == "identidad":
+                return f"✅ LEGAJO IDENTIDAD VALIDADO: El DNI {dni_esperado} y el recibo son correctos. Procede a persistir para pasar a REVISION."
+            else:
+                return f"✅ TÍTULOS DE PROPIEDAD VALIDADOS: Escritura y planos del cliente {dni_esperado} aprobados. Procede a persistir para pasar a TASACION."
         else:
-            errores = []
-            if not analisis.get('frente_ok'): errores.append("Frente DNI")
-            if not analisis.get('dorso_ok'): errores.append("Dorso DNI")
-            if not analisis.get('recibo_ok'): errores.append("Recibo de Sueldo")
-            
-            return f"❌ LEGAJO INCOMPLETO/ERRÓNEO: {analisis.get('motivo_rechazo')}. Detectado problema en: {', '.join(errores)}."
+            return f"❌ DOCUMENTACIÓN RECHAZADA ({tipo_validacion}): {analisis.get('motivo_rechazo')}."
 
     except Exception as e:
-        return f"❌ Error en peritaje de legajo: {str(e)}"
+        return f"❌ Error crítico en peritaje {tipo_validacion}: {str(e)}"
+
 
 @tool(args_schema=CreditCheckInput)
 def simulate_credit_check(dni: str, email: str, ingreso_mensual: float, monto_credito: float, 
                           valor_propiedad: float, plazo_anos: int, destino: str, 
                           haberes_bna: bool) -> str:
     """
-    Realiza una evaluación financiera y registra la solicitud.
+    Realiza una evaluación financiera y registra la solicitud en DynamoDB.
+    Si califica, envía una notificación por mail al usuario.
     """
-    # 1. Cálculos (Python usa floats acá, no hay drama)
+    # 1. Cálculos de Tasa y Cuota
     tasa_anual = 0.05 if haberes_bna else 0.08
     cuota_estimada = (monto_credito * (1 + tasa_anual)) / (plazo_anos * 12)
     ratio_ingreso = (cuota_estimada / ingreso_mensual) * 100
     ltv = (monto_credito / valor_propiedad) * 100
 
+    # 2. Validación de Riesgo (RCI <= 30% y LTV <= 80%)
     if ratio_ingreso <= 30 and ltv <= 80:
         try:
-            # 2. TRANSFORMACIÓN: Convertimos todo a Decimal para que DynamoDB no llore
-            # Tip: Convertir a str primero es la forma más segura de mantener la precisión
+            # Preparamos el ítem convirtiendo floats a Decimal para DynamoDB
             solicitud_item = {
                 'dni': dni,
                 'email': email,
@@ -178,42 +229,85 @@ def simulate_credit_check(dni: str, email: str, ingreso_mensual: float, monto_cr
                 'ultima_actualizacion': datetime.now().isoformat()
             }
             
+            # Guardamos la solicitud en la tabla
             table.put_item(Item=solicitud_item)
+
+            # --- 📧 NOTIFICACIÓN POR EMAIL ---
+            # Lo ponemos en un try separado para que si falla el mail, no se pierda el registro
+            try:
+                enviar_mail_gmail(email, dni, "DOCUMENTACION")
+                msg_mail = f"Email enviado a {email}."
+            except Exception as e_mail:
+                msg_mail = f"⚠️ Registro OK, pero falló el envío del mail: {str(e_mail)}"
             
-            return f"✅ Pre-aprobado. Registro creado para DNI {dni}."
+            return f"✅ Pre-aprobado. Registro creado para DNI {dni}. {msg_mail}"
         
         except Exception as e:
             return f"❌ Error al guardar en base de datos: {str(e)}"
     
-    return "❌ Rechazado por política de riesgo."
+    return "❌ Rechazado: El perfil no cumple con la relación cuota-ingreso (RCI) o el tope de préstamo (LTV)."
+
 
 @tool(args_schema=SolicitudInput)
-def gestionar_solicitud(dni: str, estado: str, datos_extra: dict = None) -> str:
+def gestionar_solicitud(
+    dni: str, 
+    estado: str, 
+    direccion: str = None, 
+    tipo_propiedad: str = None, 
+    ambientes: int = None, 
+) -> str:
+    """
+    Actualiza el estado del trámite en DynamoDB y notifica al usuario por mail.
+    """
     try:
-        # 1. Definimos la base: siempre cambiamos estado y fecha
+        # 1. Construcción dinámica de la actualización
         update_expr = "SET estado = :est, ultima_actualizacion = :f"
         values = {
             ":est": estado,
             ":f": datetime.now().isoformat()
         }
 
-        # 2. Si vienen datos_extra, los "agregamos" al parche
-        if datos_extra:
-            for key, val in datos_extra.items():
+        datos_mapeo = {
+            "prop_direccion": direccion,
+            "prop_tipo": tipo_propiedad,
+            "prop_ambientes": ambientes,
+        }
+
+        for key, val in datos_mapeo.items():
+            if val is not None:
                 update_expr += f", {key} = :{key}"
                 values[f":{key}"] = val
 
-        # 3. Ejecutamos el parche real
+        # 2. Actualizar en DynamoDB
         table.update_item(
-            Key={'dni': dni}, # <--- Quién
-            UpdateExpression=update_expr, # <--- Qué campos
-            ExpressionAttributeValues=values # <--- Qué valores
+            Key={'dni': dni},
+            UpdateExpression=update_expr,
+            ExpressionAttributeValues=values
         )
+
+        # 3. Obtener el ítem completo para sacar el Email
+        # Usamos ConsistentRead=True para asegurar que leemos el dato recién guardado
+        response = table.get_item(Key={'dni': dni}, ConsistentRead=True)
         
-        return f"✅ Base de Datos: Solicitud {dni} parcheada a estado '{estado}'."
+        if 'Item' in response:
+            item = response['Item']
+            email_usuario = item.get('email')
+            
+            if email_usuario:
+                # 📧 Enviamos el mail a través de tu función de Gmail
+                enviar_mail_gmail(email_usuario, dni, estado)
+                info_mail = f"Correo enviado a {email_usuario}."
+            else:
+                info_mail = "⚠️ No se envió mail (Usuario sin email registrado)."
+        else:
+            info_mail = "❌ No se encontró el ítem para notificar."
+
+        return f"✅ Trámite {dni} actualizado a '{estado}'. {info_mail}"
+
     except Exception as e:
-        return f"❌ Error: {str(e)}"
-    
+        return f"❌ Error en gestionar_solicitud: {str(e)}"
+
+
 @tool
 def consultar_estado_cliente(dni: str) -> str:
     """
@@ -231,18 +325,28 @@ def consultar_estado_cliente(dni: str) -> str:
     
 
 @tool(args_schema=DocumentacionInput)
-def persistir_documentacion_validada(dni: str, state: Annotated[dict, InjectedState]) -> str:
+def persistir_documentacion_validada(dni: str, tipo_validacion: str, state: Annotated[dict, InjectedState]) -> str:
     """
-    Sube las fotos (Frente, Dorso, Recibo) a sus respectivas subcarpetas en S3
-    y actualiza el estado del trámite en DynamoDB.
+    Sube fotos a S3 y actualiza DynamoDB. 
+    Notifica al usuario por mail sobre el cambio de estado (REVISION o TASACION).
     """
     BUCKET_NAME = "credit-agent-documentacion"
-    # Definimos el orden esperado de las carpetas
-    subcarpetas = ["frente", "dorso", "recibo"]
+    s3 = boto3.client('s3')
+    
+    # Definimos etiquetas y estados según el tipo
+    if tipo_validacion == "identidad":
+        subcarpetas = ["frente", "dorso", "recibo"]
+        campo_dynamo = "fotos_s3"
+        nuevo_estado = "REVISION"
+    else:
+        subcarpetas = ["escritura", "planos"]
+        campo_dynamo = "fotos_documentacion_s3"
+        nuevo_estado = "TASACION"
+
     imagenes_encontradas = []
 
     try:
-        # 1. Extraer las imágenes del historial (buscamos el último pack enviado)
+        # 1. Extraer las imágenes del historial
         mensajes = state.get("messages", [])
         for m in reversed(mensajes):
             if isinstance(m, HumanMessage) and isinstance(m.content, list):
@@ -255,21 +359,17 @@ def persistir_documentacion_validada(dni: str, state: Annotated[dict, InjectedSt
                     break
 
         if not imagenes_encontradas:
-            return "❌ Error: No se encontraron las imágenes para persistir."
+            return f"❌ Error: No encontré las fotos de {tipo_validacion} para guardar."
 
         # 2. Subida organizada a S3
         links_s3 = []
         timestamp = datetime.now().strftime('%H%M%S')
         
         for idx, b64_str in enumerate(imagenes_encontradas):
-            # Limpieza de base64
             pure_b64 = b64_str.split(",")[1] if "," in b64_str else b64_str
             image_bytes = base64.b64decode(pure_b64)
             
-            # Determinamos la subcarpeta. Si hay más de 3 fotos, el resto va a 'otros'
             folder_name = subcarpetas[idx] if idx < len(subcarpetas) else f"extra_{idx}"
-            
-            # ARMAMOS LA RUTA: dni/subcarpeta/archivo.png
             file_key = f"{dni}/{folder_name}/doc_{timestamp}.png"
             
             s3.put_object(
@@ -280,18 +380,35 @@ def persistir_documentacion_validada(dni: str, state: Annotated[dict, InjectedSt
             )
             links_s3.append(f"s3://{BUCKET_NAME}/{file_key}")
 
-        # 3. Actualizamos DynamoDB con los links organizados
+        # 3. Actualizamos DynamoDB
         table.update_item(
             Key={'dni': dni},
-            UpdateExpression="SET estado = :est, fotos_s3 = :f, ultima_actualizacion = :t",
+            UpdateExpression=f"SET estado = :est, {campo_dynamo} = :f, ultima_actualizacion = :t",
             ExpressionAttributeValues={
-                ':est': 'REVISION',
+                ':est': nuevo_estado,
                 ':f': links_s3,
                 ':t': datetime.now().isoformat()
             }
         )
 
-        return f"✅ ÉXITO: Se guardaron {len(links_s3)} fotos en las carpetas {', '.join(subcarpetas[:len(links_s3)])} para el DNI {dni}."
+        # --- 📧 4. NOTIFICACIÓN POR EMAIL ---
+        try:
+            # Buscamos el mail del usuario para avisarle
+            res_user = table.get_item(Key={'dni': dni}, ConsistentRead=True)
+            if 'Item' in res_user:
+                email_usuario = res_user['Item'].get('email')
+                if email_usuario:
+                    enviar_mail_gmail(email_usuario, dni, nuevo_estado)
+                    info_mail = f"Email enviado a {email_usuario}."
+                else:
+                    info_mail = "⚠️ No se encontró email para notificar."
+            else:
+                info_mail = "⚠️ No se pudo recuperar el usuario para enviar el mail."
+        except Exception as e_mail:
+            info_mail = f"⚠️ Falló el envío del mail: {str(e_mail)}"
+
+        return (f"✅ ÉXITO ({tipo_validacion}): Se guardaron {len(links_s3)} fotos. "
+                f"El trámite pasó a '{nuevo_estado}'. {info_mail}")
 
     except Exception as e:
-        return f"❌ ERROR en persistir_documentacion: {str(e)}"
+        return f"❌ ERROR en persistir_documentacion ({tipo_validacion}): {str(e)}"

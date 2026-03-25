@@ -7,15 +7,15 @@ interface UploadedDoc {
   id: string;
   name: string;
   file: File;
-  type: 'dni_frente' | 'dni_dorso' | 'recibo';
+  type: 'titulo' | 'propiedad' | 'plano';
 }
 
-interface DocumentationUploaderProps {
+interface PropertyDocumentsUploaderProps {
   onSendDocumentation: (files: UploadedDoc[]) => void;
   isLoading?: boolean;
 }
 
-export const DocumentationUploader: React.FC<DocumentationUploaderProps> = ({ 
+export const PropertyDocumentsUploader: React.FC<PropertyDocumentsUploaderProps> = ({ 
   onSendDocumentation, 
   isLoading = false
 }) => {
@@ -24,14 +24,13 @@ export const DocumentationUploader: React.FC<DocumentationUploaderProps> = ({
   const { addToast } = useToast();
 
   const documentTypes = [
-    { id: 'dni_frente', label: 'DNI - Frente', required: true },
-    { id: 'dni_dorso', label: 'DNI - Dorso', required: true },
-    { id: 'recibo', label: 'Último Recibo de Sueldo', required: true },
+    { id: 'titulo', label: 'Título de Propiedad', required: true },
+    { id: 'plano', label: 'Plano de la Propiedad', required: true },
   ] as const;
 
   type DocType = typeof documentTypes[number]['id'];
 
-  const handleFiles = (files: FileList) => {
+  const handleFiles = (files: FileList, docType: DocType) => {
     const newFiles = Array.from(files);
     
     newFiles.forEach((file) => {
@@ -45,21 +44,13 @@ export const DocumentationUploader: React.FC<DocumentationUploaderProps> = ({
         return;
       }
 
-      const fileType = document.querySelector(`input[data-file-type]`) as HTMLInputElement;
-      if (!fileType?.dataset.fileType) {
-        addToast('Por favor selecciona el tipo de documento', 'error');
-        return;
-      }
-
-      const docId = fileType.dataset.fileType as DocType;
-      
       setUploadedDocs((prev) => [
-        ...prev.filter((doc) => doc.type !== docId),
+        ...prev.filter((doc) => doc.type !== docType),
         {
-          id: `${docId}-${Date.now()}`,
+          id: `${docType}-${Date.now()}`,
           name: file.name,
           file: file,
-          type: docId,
+          type: docType,
         },
       ]);
 
@@ -116,7 +107,7 @@ export const DocumentationUploader: React.FC<DocumentationUploaderProps> = ({
   };
 
   const handleSend = () => {
-    const requiredDocs = ['dni_frente', 'dni_dorso', 'recibo'];
+    const requiredDocs = ['titulo', 'plano'];
     const uploadedTypes = uploadedDocs.map((doc) => doc.type);
 
     const missing = requiredDocs.filter((type) => !uploadedTypes.includes(type as DocType));
@@ -130,13 +121,13 @@ export const DocumentationUploader: React.FC<DocumentationUploaderProps> = ({
     setUploadedDocs([]);
   };
 
-  const allDocumentsUploaded = uploadedDocs.length === 3;
+  const allDocumentsUploaded = uploadedDocs.length === 2;
 
   return (
     <div className="w-full h-full flex flex-col bg-white">
       <div className="flex-1 overflow-y-auto p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-2 mt-6">Carga de Documentación</h2>
-        <p className="text-sm text-gray-600 mb-6">Sube los documentos requeridos para continuar.</p>
+        <h2 className="text-xl font-bold text-gray-900 mb-2 mt-6">Carga de Título y Plano</h2>
+        <p className="text-sm text-gray-600 mb-6">Sube los documentos requeridos de la propiedad para continuar.</p>
 
         <div className="space-y-4">
           {documentTypes.map((docType) => {
@@ -181,11 +172,15 @@ export const DocumentationUploader: React.FC<DocumentationUploaderProps> = ({
                     </div>
                     <input
                       type="file"
-                      accept="image/*,.pdf"
-                      onChange={(e) => e.target.files && handleFiles(e.target.files)}
                       className="hidden"
-                      data-file-type={docType.id}
+                      onChange={(e) => {
+                        if (e.target.files) {
+                          handleFiles(e.target.files, docType.id as DocType);
+                        }
+                      }}
+                      accept=".jpg,.jpeg,.png,.pdf"
                       disabled={isLoading}
+                      data-file-type={docType.id}
                     />
                   </label>
                 )}
@@ -209,5 +204,3 @@ export const DocumentationUploader: React.FC<DocumentationUploaderProps> = ({
     </div>
   );
 };
-
-export default DocumentationUploader;
