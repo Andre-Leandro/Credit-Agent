@@ -8,6 +8,10 @@ import base64
 from langgraph.prebuilt import InjectedState
 from langchain_core.messages import HumanMessage
 import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
 
 # Inicializamos DynamoDB
 REGION = 'us-east-1'
@@ -15,6 +19,47 @@ dynamodb = boto3.resource('dynamodb', region_name=REGION)
 s3 = boto3.client('s3', region_name=REGION)
 table = dynamodb.Table('SolicitudesCredito')
 BUCKET_S3 = "credit-agent-documentacion"
+
+GMAIL_USER = "andre.sanlorenzo@strata-analytics.us" 
+GMAIL_PASS = "hjquatrsdnkxidbk" # Tu App Password (sin espacios)
+
+def enviar_mail_gmail(destinatario, dni, nuevo_estado):
+    """Manda el mail usando el servidor de Google directamente"""
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Actualización de Trámite Credit Bank - DNI {dni}"
+        msg["From"] = f"Asistente Hipotecario <{GMAIL_USER}>"
+        msg["To"] = destinatario
+
+        # Cuerpo del mail en HTML
+        html_content = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; color: #333;">
+            <div style="max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+              <h2 style="color: #2c3e50;">¡Hola! Tenemos novedades.</h2>
+              <p>Te informamos que el estado de tu solicitud de crédito (DNI: <strong>{dni}</strong>) ha sido actualizado.</p>
+              <div style="background-color: #f8f9fa; padding: 15px; border-left: 5px solid #27ae60; margin: 20px 0;">
+                <span style="font-size: 1.1em;">Nuevo Estado: <strong>{nuevo_estado}</strong></span>
+              </div>
+              <p>Podés consultar el avance detallado ingresando a nuestra plataforma.</p>
+              <hr style="border: 0; border-top: 1px solid #eee;">
+              <p style="font-size: 0.8em; color: #777;">Este es un mensaje automático del Asistente Virtual.</p>
+            </div>
+          </body>
+        </html>
+        """
+        msg.attach(MIMEText(html_content, "html"))
+
+        # Conexión Segura con Gmail
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(GMAIL_USER, GMAIL_PASS)
+            server.send_message(msg)
+        
+        print(f"✅ Mail enviado exitosamente a {destinatario}")
+        return True
+    except Exception as e:
+        print(f"❌ Error enviando mail: {str(e)}")
+        return False
 
 # --- ESQUEMAS DE ENTRADA (Pydantic) ---
 class DocumentacionInput(BaseModel):
@@ -155,18 +200,19 @@ def simulate_credit_check(dni: str, email: str, ingreso_mensual: float, monto_cr
                           valor_propiedad: float, plazo_anos: int, destino: str, 
                           haberes_bna: bool) -> str:
     """
-    Realiza una evaluación financiera y registra la solicitud.
+    Realiza una evaluación financiera y registra la solicitud en DynamoDB.
+    Si califica, envía una notificación por mail al usuario.
     """
-    # 1. Cálculos (Python usa floats acá, no hay drama)
+    # 1. Cálculos de Tasa y Cuota
     tasa_anual = 0.05 if haberes_bna else 0.08
     cuota_estimada = (monto_credito * (1 + tasa_anual)) / (plazo_anos * 12)
     ratio_ingreso = (cuota_estimada / ingreso_mensual) * 100
     ltv = (monto_credito / valor_propiedad) * 100
 
+    # 2. Validación de Riesgo (RCI <= 30% y LTV <= 80%)
     if ratio_ingreso <= 30 and ltv <= 80:
         try:
-            # 2. TRANSFORMACIÓN: Convertimos todo a Decimal para que DynamoDB no llore
-            # Tip: Convertir a str primero es la forma más segura de mantener la precisión
+            # Preparamos el ítem convirtiendo floats a Decimal para DynamoDB
             solicitud_item = {
                 'dni': dni,
                 'email': email,
@@ -183,14 +229,23 @@ def simulate_credit_check(dni: str, email: str, ingreso_mensual: float, monto_cr
                 'ultima_actualizacion': datetime.now().isoformat()
             }
             
+            # Guardamos la solicitud en la tabla
             table.put_item(Item=solicitud_item)
+
+            # --- 📧 NOTIFICACIÓN POR EMAIL ---
+            # Lo ponemos en un try separado para que si falla el mail, no se pierda el registro
+            try:
+                enviar_mail_gmail(email, dni, "DOCUMENTACION")
+                msg_mail = f"Email enviado a {email}."
+            except Exception as e_mail:
+                msg_mail = f"⚠️ Registro OK, pero falló el envío del mail: {str(e_mail)}"
             
-            return f"✅ Pre-aprobado. Registro creado para DNI {dni}."
+            return f"✅ Pre-aprobado. Registro creado para DNI {dni}. {msg_mail}"
         
         except Exception as e:
             return f"❌ Error al guardar en base de datos: {str(e)}"
     
-    return "❌ Rechazado por política de riesgo."
+    return "❌ Rechazado: El perfil no cumple con la relación cuota-ingreso (RCI) o el tope de préstamo (LTV)."
 
 
 @tool(args_schema=SolicitudInput)
@@ -202,41 +257,57 @@ def gestionar_solicitud(
     ambientes: int = None, 
 ) -> str:
     """
-    Actualiza el estado del trámite en DynamoDB. 
-    Opcionalmente registra datos de una propiedad si el usuario los proporcionó.
+    Actualiza el estado del trámite en DynamoDB y notifica al usuario por mail.
     """
     try:
-        # 1. Base: Siempre actualizamos estado y fecha
+        # 1. Construcción dinámica de la actualización
         update_expr = "SET estado = :est, ultima_actualizacion = :f"
         values = {
             ":est": estado,
             ":f": datetime.now().isoformat()
         }
 
-        # 2. Diccionario de mapeo para campos extras
         datos_mapeo = {
             "prop_direccion": direccion,
             "prop_tipo": tipo_propiedad,
             "prop_ambientes": ambientes,
         }
 
-        # Solo agregamos al UpdateExpression lo que NO es None
         for key, val in datos_mapeo.items():
             if val is not None:
                 update_expr += f", {key} = :{key}"
                 values[f":{key}"] = val
 
-        # 3. Ejecución
+        # 2. Actualizar en DynamoDB
         table.update_item(
             Key={'dni': dni},
             UpdateExpression=update_expr,
             ExpressionAttributeValues=values
         )
+
+        # 3. Obtener el ítem completo para sacar el Email
+        # Usamos ConsistentRead=True para asegurar que leemos el dato recién guardado
+        response = table.get_item(Key={'dni': dni}, ConsistentRead=True)
         
-        return f"✅ DB: Trámite {dni} actualizado a '{estado}' (con datos extra: {list(filter(lambda k: datos_mapeo[k] is not None, datos_mapeo))})."
+        if 'Item' in response:
+            item = response['Item']
+            email_usuario = item.get('email')
+            
+            if email_usuario:
+                # 📧 Enviamos el mail a través de tu función de Gmail
+                enviar_mail_gmail(email_usuario, dni, estado)
+                info_mail = f"Correo enviado a {email_usuario}."
+            else:
+                info_mail = "⚠️ No se envió mail (Usuario sin email registrado)."
+        else:
+            info_mail = "❌ No se encontró el ítem para notificar."
+
+        return f"✅ Trámite {dni} actualizado a '{estado}'. {info_mail}"
+
     except Exception as e:
         return f"❌ Error en gestionar_solicitud: {str(e)}"
-    
+
+
 @tool
 def consultar_estado_cliente(dni: str) -> str:
     """

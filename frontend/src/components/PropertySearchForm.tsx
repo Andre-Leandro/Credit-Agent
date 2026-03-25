@@ -42,14 +42,11 @@ export const PropertySearchForm: React.FC<PropertySearchFormProps> = ({
       return;
     }
 
-    const mensaje = `Necesito búsqueda de propiedad con los siguientes criterios:
+    const mensaje = `Los datos de la propiedad elegida son:
 
-Información de la Propiedad
 - Dirección: ${address}
 - Tipo de Propiedad: ${propertyType}
-- Ambientes: ${environments}
-
-Por favor, ayúdame a buscar propiedades que cumplan con estos requisitos.`;
+- Ambientes: ${environments}`;
 
     onSendMessage(mensaje);
     handleReset();

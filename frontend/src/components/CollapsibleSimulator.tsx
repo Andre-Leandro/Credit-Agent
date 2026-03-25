@@ -20,6 +20,10 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const [isOpen, setIsOpen] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [documentTab, setDocumentTab] = useState<'personal' | 'propiedad'>('personal');
   const { requestState } = useRequest();
   const { user } = useAuth();
@@ -30,7 +34,7 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const [loanAmount, setLoanAmount] = useState(0);
   const [salaryAccount, setSalaryAccount] = useState('No');
   const [cvsCap, setCvsCap] = useState('No');
-  const { toasts, addToast, removeToast } = useToast();
+  const { toasts, removeToast } = useToast();
 
   // Estados para documentos
   const REVIEW_STATES = ['REVISION', 'BUSQUEDA_PROPIEDAD', 'TITULOS_CARGADOS', 'TASACION', 'FINALIZADO'];
@@ -38,13 +42,14 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
   const isBusquedaPropiedadState = user?.estado && user.estado.toUpperCase() === 'BUSQUEDA_PROPIEDAD';
   const isTitulosCargadosState = user?.estado && user.estado.toUpperCase() === 'TITULOS_CARGADOS';
   const isTasacionState = user?.estado && user.estado.toUpperCase() === 'TASACION';
+  const isFinalizadoState = user?.estado && user.estado.toUpperCase() === 'FINALIZADO';
   
   // Fotos personales y de propiedad
   const fotosPersonales = user?.fotos_visibles ? (Array.isArray(user.fotos_visibles) ? user.fotos_visibles : [user.fotos_visibles]) : [];
   const fotosPropiedad = (user as any)?.fotos_visibles_propiedad ? (Array.isArray((user as any).fotos_visibles_propiedad) ? (user as any).fotos_visibles_propiedad : [(user as any).fotos_visibles_propiedad]) : [];
   
-  // Usar fotos según la tab seleccionada en TASACION
-  const fotosActuales = isTasacionState 
+  // Usar fotos según la tab seleccionada en TASACION y FINALIZADO
+  const fotosActuales = (isTasacionState || isFinalizadoState)
     ? (documentTab === 'personal' ? fotosPersonales : fotosPropiedad)
     : fotosPersonales;
 
@@ -53,9 +58,45 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
     console.log('🎨 CollapsibleSimulator - Renderizando panel:', requestState === 'simulator' ? '📋 SIMULADOR' : '📄 DOCUMENTACION');
   }, [requestState]);
 
+  // Resetear pan y zoom cuando se abre una nueva imagen
+  useEffect(() => {
+    if (zoomImage) {
+      setPanX(0);
+      setPanY(0);
+      setZoomScale(1);
+      setIsDragging(false);
+    }
+  }, [zoomImage]);
+
+  // Handlers para pan (mover imagen) - Solo cuando está presionado el botón
+  const handleImageMouseDown = (e: React.MouseEvent) => {
+    if (zoomScale <= 1 || e.button !== 0) return; // Solo botón izquierdo y si es zoom
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - panX, y: e.clientY - panY });
+  };
+
+  const handleImageMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return; // Solo mover si está presionado
+    e.preventDefault();
+    e.stopPropagation();
+    const newPanX = e.clientX - dragStart.x;
+    const newPanY = e.clientY - dragStart.y;
+    setPanX(newPanX);
+    setPanY(newPanY);
+  };
+
+  const handleImageMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleContainerMouseUp = (e: React.MouseEvent) => {
+    setIsDragging(false);
+  };
+
   const handleSimulation = () => {
     if (propertyValue === 0 || loanAmount === 0 || years === 0 || monthlyIncome === 0) {
-      addToast('Por favor completa todos los campos', 'error');
       return;
     }
     
@@ -78,7 +119,6 @@ export const CollapsibleSimulator: React.FC<CollapsibleSimulatorProps> = ({ onSe
     // Limpiar formulario
     handleReset();
     setIsOpen(false);
-    addToast('Datos enviados al chat', 'success');
   };
 
   const handleReset = () => {
@@ -105,7 +145,6 @@ Por favor, procede con la evaluación de mi solicitud.`;
     const fileObjects = files.map((doc) => doc.file);
     
     onSendMessage(mensaje, fileObjects);
-    addToast('Documentos enviados al chat', 'success');
   };
 
   const handleSendPropertyDocumentation = (files: any[]) => {
@@ -121,7 +160,6 @@ Por favor, procede con la evaluación.`;
     const fileObjects = files.map((doc) => doc.file);
     
     onSendMessage(mensaje, fileObjects);
-    addToast('Documentos de propiedad enviados al chat', 'success');
   };
 
   return (
@@ -293,8 +331,8 @@ Por favor, procede con la evaluación.`;
           <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarGutter: 'stable' }}>
             <h2 className="text-xl font-bold text-gray-900 mb-6 mt-6">Documentos Cargados</h2>
             
-            {/* Tabs - Solo mostrar en TASACION */}
-            {isTasacionState && (
+            {/* Tabs - Solo mostrar en TASACION y FINALIZADO */}
+            {(isTasacionState || isFinalizadoState) && (
               <div className="flex justify-center mb-6">
                 <div className="inline-flex gap-0 border-b border-gray-200">
                   <button
@@ -402,19 +440,39 @@ Por favor, procede con la evaluación.`;
             </button>
 
             {/* Contenedor de imagen con scroll */}
-            <div className="flex items-center justify-center overflow-auto max-h-screen">
+            <div
+              className={`flex items-center justify-center overflow-auto max-h-screen ${
+                isDragging && zoomScale > 1 ? 'cursor-grabbing' : zoomScale > 1 ? 'cursor-grab' : 'cursor-default'
+              }`}
+              onMouseMove={handleImageMouseMove}
+              onMouseUp={handleContainerMouseUp}
+              onMouseLeave={handleImageMouseUp}
+              style={{ userSelect: 'none' }}
+            >
               <img
                 src={zoomImage}
                 alt="Zoom"
                 className="w-full h-auto object-contain"
-                style={{ transform: `scale(${zoomScale})` }}
+                style={{
+                  transform: `scale(${zoomScale}) translate(${panX}px, ${panY}px)`,
+                  transformOrigin: 'center',
+                  userSelect: 'none',
+                  touchAction: 'none',
+                  cursor: isDragging && zoomScale > 1 ? 'grabbing' : zoomScale > 1 ? 'grab' : 'default'
+                }}
+                onMouseDown={handleImageMouseDown}
+                draggable={false}
               />
             </div>
 
             {/* Controles de zoom */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-3 bg-black/50 rounded-lg p-3 backdrop-blur-sm">
               <button
-                onClick={() => setZoomScale(Math.max(1, zoomScale - 0.2))}
+                onClick={() => {
+                  setZoomScale(Math.max(1, zoomScale - 0.2));
+                  setPanX(0);
+                  setPanY(0);
+                }}
                 className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded transition-all text-sm font-medium"
               >
                 −
@@ -423,14 +481,20 @@ Por favor, procede con la evaluación.`;
                 {Math.round(zoomScale * 100)}%
               </span>
               <button
-                onClick={() => setZoomScale(Math.min(3, zoomScale + 0.2))}
+                onClick={() => {
+                  setZoomScale(Math.min(3, zoomScale + 0.2));
+                }}
                 className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded transition-all text-sm font-medium"
               >
                 +
               </button>
               <div className="w-px h-6 bg-white/20"></div>
               <button
-                onClick={() => setZoomScale(1)}
+                onClick={() => {
+                  setZoomScale(1);
+                  setPanX(0);
+                  setPanY(0);
+                }}
                 className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded transition-all text-sm font-medium"
               >
                 Ajustar
