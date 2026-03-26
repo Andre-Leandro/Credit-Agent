@@ -333,31 +333,27 @@ Por favor, procede con la evaluación.`;
             
             {/* Tabs - Solo mostrar en TASACION y FINALIZADO */}
             {(isTasacionState || isFinalizadoState) && (
-              <div className="flex justify-center mb-6">
-                <div className="inline-flex gap-0 border-b border-gray-200">
+              <div className="mb-6">
+                <div className="grid grid-cols-2 rounded-lg border border-gray-200 p-1 bg-gray-50">
                   <button
+                    type="button"
                     onClick={() => setDocumentTab('personal')}
-                    className={`px-4 py-2 font-semibold text-sm relative ${
+                    className={`h-9 rounded-md text-sm font-semibold transition-colors ${
                       documentTab === 'personal'
-                        ? 'text-[#10069f]'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-white text-[#10069f] shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
                     }`}
-                    style={{
-                      borderBottom: documentTab === 'personal' ? '2px solid #10069f' : 'none'
-                    }}
                   >
                     Personal
                   </button>
                   <button
+                    type="button"
                     onClick={() => setDocumentTab('propiedad')}
-                    className={`px-4 py-2 font-semibold text-sm relative ${
+                    className={`h-9 rounded-md text-sm font-semibold transition-colors ${
                       documentTab === 'propiedad'
-                        ? 'text-[#10069f]'
-                        : 'text-gray-600 hover:text-gray-900'
+                        ? 'bg-white text-[#10069f] shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
                     }`}
-                    style={{
-                      borderBottom: documentTab === 'propiedad' ? '2px solid #10069f' : 'none'
-                    }}
                   >
                     Propiedad
                   </button>
