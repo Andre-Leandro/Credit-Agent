@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, LogOut, CheckCircle } from 'lucide-react';
+import { ChevronDown, LogOut, CheckCircle, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from './Toast';
 import { useChatHistory } from '../hooks/useChatHistory';
@@ -13,7 +13,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ currentStatus = '' }) 
   const [isLoading, setIsLoading] = useState(false);
   const { user, logout } = useAuth();
   const { addToast } = useToast();
-  const { isEnabled: historyEnabled, toggleHistorySaving } = useChatHistory(user?.dni);
+  const { isEnabled: historyEnabled, toggleHistorySaving, clearChatHistory } = useChatHistory(user?.dni);
 
   const handleToggleHistory = (enabled: boolean) => {
     toggleHistorySaving(enabled);
@@ -83,6 +83,47 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ currentStatus = '' }) 
     logout();
   };
 
+  const handleDeleteProgress = async () => {
+    if (!user?.dni) {
+      addToast('No se encontro DNI para eliminar progreso', 'error');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const lambdaUrl = import.meta.env.VITE_LAMBDA_URL;
+      if (!lambdaUrl) {
+        addToast('Lambda URL no configurada', 'error');
+        return;
+      }
+
+      const response = await fetch(lambdaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_user',
+          dni: user.dni,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success') {
+        clearChatHistory();
+        addToast('✅ Progreso eliminado correctamente', 'success');
+        setIsOpen(false);
+      } else {
+        addToast(`❌ Error: ${data.message || 'No se pudo eliminar el progreso'}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error al eliminar progreso:', error);
+      addToast('Error al conectar con la base de datos', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="relative">
       {/* Profile button */}
@@ -130,6 +171,21 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({ currentStatus = '' }) 
                 <p className="font-medium text-gray-900">Guardar historial</p>
               </div>
               <span className="text-xs font-semibold text-gray-500">{historyEnabled ? 'ON' : 'OFF'}</span>
+            </button>
+
+            {/* Eliminar progreso */}
+            <button
+              onClick={handleDeleteProgress}
+              disabled={isLoading}
+              className="w-full px-4 py-3 text-left hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <Trash2 className="w-5 h-5 text-red-600" />
+                <p className="font-medium text-black-700">Eliminar progreso</p>
+              </div>
+              {isLoading && (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-600 border-t-transparent"></div>
+              )}
             </button>
 
             {/* Cerrar Sesión */}
