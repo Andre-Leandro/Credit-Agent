@@ -11,6 +11,7 @@ interface MeliSearchResult {
   titulo?: string;
   precio?: string;
   ubicacion?: string;
+  ambientes?: number | string;
   imagen?: string;
   imagenes?: string[];
   link?: string;
@@ -248,6 +249,7 @@ export const PropertySearchForm: React.FC<PropertySearchFormProps> = ({
 - Titulo: ${result.titulo || 'N/A'}
 - Precio: ${result.precio || 'N/A'}
 - Ubicacion: ${result.ubicacion || 'N/A'}
+- Ambientes: ${result.ambientes ?? 'N/A'}
 - Link: ${result.link || 'N/A'}`;
 
     onSendMessage(message);
