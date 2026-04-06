@@ -54,12 +54,13 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
     }
   }, [isInitialized, loadChatHistory]);
 
-  // Detecta cambios de estado y agrega el mensaje de felicitaciones sin requerir refresh
+  // Detecta cambios de estado y agrega mensajes automáticos sin requerir refresh
   useEffect(() => {
     if (!isInitialized || !user?.dni) return;
 
     let isCancelled = false;
     const flagKey = `credit_approval_message_shown_${user.dni}`;
+    const propertyFlagKey = `property_docs_message_shown_${user.dni}`;
 
     const checkStatusAndNotify = async () => {
       try {
@@ -86,6 +87,29 @@ const ChatPanel = forwardRef<any, {}>((_, ref) => {
         if (isCancelled || data.status !== 'success' || !data.data) return;
 
         const estado = (data.data.estado || '').toUpperCase();
+
+        if (estado === 'BUSQUEDA_PROPIEDAD' || estado === 'BÚSQUEDA_PROPIEDAD') {
+          const alreadyShownPropertyMessage = localStorage.getItem(propertyFlagKey) === 'true';
+          if (!alreadyShownPropertyMessage) {
+            const propertyApprovalMessage: ChatMessage = {
+              id: String(Date.now()),
+              type: 'agent',
+              message: `¡Excelente noticia! Nuestro equipo ya analizó tu documentación personal y aprobó tu solicitud para avanzar.
+
+Ahora necesitamos que subas la documentación de la propiedad para continuar con el proceso:
+- Título de propiedad
+- Plano de la propiedad
+
+Cuando la cargues, seguimos con la validación y la tasación.`,
+              timestamp: new Date(),
+            };
+
+            setMessages((prev) => [...prev, propertyApprovalMessage]);
+            localStorage.setItem(propertyFlagKey, 'true');
+          }
+        } else {
+          localStorage.removeItem(propertyFlagKey);
+        }
 
         if (estado === 'FINALIZADO') {
           const alreadyShown = localStorage.getItem(flagKey) === 'true';
